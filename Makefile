@@ -1,4 +1,5 @@
 CFLAGS += -std=c99 -g
+LDFLAGS += -lssl -lcrypto -L/opt/local/lib
 
 ALL: juego-vida
 

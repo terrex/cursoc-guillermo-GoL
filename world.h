@@ -4,8 +4,8 @@
 struct world;
 
 enum lifeness {
-	ALIVE,
-	DEAD
+	DEAD = 0,
+	ALIVE = 1,
 };
 
 struct world * world_random(void);
