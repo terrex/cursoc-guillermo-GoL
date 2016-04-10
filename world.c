@@ -12,13 +12,15 @@ struct world {
 	char matrix[ROWS][COLS];
 };
 
-struct world * world_random(void)
+struct world *world_random(void)
 {
 	struct world *result = calloc(1, sizeof(struct world));
+
 	result->rows = ROWS;
 	result->cols = COLS;
 
-	RAND_pseudo_bytes((unsigned char *)(result->matrix), result->rows * result->cols);
+	RAND_pseudo_bytes((unsigned char *)(result->matrix),
+		result->rows * result->cols);
 
 	/* me quedo con la bi-paridad del número para decidir DEAD o ALIVE */
 	for (int i = 0; i < result->rows; i++)
@@ -28,7 +30,7 @@ struct world * world_random(void)
 	return result;
 }
 
-struct world * world_free(struct world *w)
+struct world *world_free(struct world *w)
 {
 	if (w != NULL)
 		free(w);
@@ -38,8 +40,9 @@ struct world * world_free(struct world *w)
 void world_print(const struct world *w)
 {
 	int z = w->cols;
+
 	printf("/");
-	while(z--)
+	while (z--)
 		printf("-");
 	printf("\\\n");
 
@@ -56,7 +59,7 @@ void world_print(const struct world *w)
 
 	z = w->cols;
 	printf("\\");
-	while(z--)
+	while (z--)
 		printf("-");
 	printf("/\n");
 }
