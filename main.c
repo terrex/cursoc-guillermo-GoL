@@ -1,28 +1,24 @@
 #include <stdio.h>
+#include <unistd.h>
 #include "world.h"
+
+#define RESET_SCREEN "\x1B[1;1H\x1B[2J"
 
 int main(void)
 {
+	int it = 1;
 	struct world *w = world_random();
 
-	printf("Mundo %d:\n", 1);
+	printf(RESET_SCREEN "Mundo %d:\n", it++);
 	world_print(w);
+	sleep(1);
 
-	w = world_next_gen(w);
-	printf("Mundo %d:\n", 2);
-	world_print(w);
-
-	w = world_next_gen(w);
-	printf("Mundo %d:\n", 3);
-	world_print(w);
-
-	w = world_next_gen(w);
-	printf("Mundo %d:\n", 4);
-	world_print(w);
-
-	w = world_next_gen(w);
-	printf("Mundo %d:\n", 5);
-	world_print(w);
+	do {
+		w = world_next_gen(w);
+		printf(RESET_SCREEN "Mundo %d:\n", it++);
+		world_print(w);
+		sleep(1);
+	} while (it < 15);
 
 	w = world_free(w);
 

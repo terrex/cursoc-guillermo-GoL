@@ -10,7 +10,7 @@
 struct world {
 	short rows;
 	short cols;
-	char matrix[ROWS][COLS];
+	unsigned char matrix[ROWS][COLS];
 };
 
 struct world *world_random(void)
@@ -23,23 +23,40 @@ struct world *world_random(void)
 	RAND_pseudo_bytes((unsigned char *)(result->matrix),
 		result->rows * result->cols);
 
-	/* me quedo con la bi-paridad del número para decidir DEAD o ALIVE */
+	/* la celda estará ALIVE con una probabilidad del (55 / 256) */
 	for (int i = 0; i < result->rows; i++)
 		for (int j = 0; j < result->cols; j++)
-			result->matrix[i][j] &= 11;
+			result->matrix[i][j] = (result->matrix[i][j] < 55);
 
 	return result;
 }
 
 struct world *world_next_gen(struct world *before)
 {
+	int neighbourhood;
 	struct world *after = malloc(sizeof(*before));
 
 	memcpy(after, before, sizeof(*before));
 
-	for (int i = 0; i < before->rows; i++) {
-		for (int j = 0; j < before->cols; j++) {
-			/* TODO: compute cell */
+	for (int i = 0; i < after->rows; i++) {
+		for (int j = 0; j < after->cols; j++) {
+			neighbourhood =
+before->matrix[(i - 1) % after->rows][(j - 1) % after->cols] + /* NW */
+before->matrix[(i - 1) % after->rows][(j + 0) % after->cols] + /* N */
+before->matrix[(i - 1) % after->rows][(j + 1) % after->cols] + /* NE */
+before->matrix[(i + 0) % after->rows][(j - 1) % after->cols] + /* W */
+before->matrix[(i + 0) % after->rows][(j + 1) % after->cols] + /* E */
+before->matrix[(i + 1) % after->rows][(j - 1) % after->cols] + /* SW */
+before->matrix[(i + 1) % after->rows][(j + 0) % after->cols] + /* S */
+before->matrix[(i + 1) % after->rows][(j + 1) % after->cols] ; /* SE */
+
+			if (before->matrix[i][j] == DEAD && neighbourhood == 3)
+				after->matrix[i][j] = ALIVE;
+			else if (before->matrix[i][j] == ALIVE &&
+				(neighbourhood == 2 || neighbourhood == 3))
+				after->matrix[i][j] = ALIVE;
+			else
+				after->matrix[i][j] = DEAD;
 		}
 	}
 
