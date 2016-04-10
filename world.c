@@ -36,6 +36,13 @@ struct world *world_next_gen(struct world *before)
 	struct world *after = malloc(sizeof(*before));
 
 	memcpy(after, before, sizeof(*before));
+
+	for (int i = 0; i < before->rows; i++) {
+		for (int j = 0; j < before->cols; j++) {
+			/* TODO: compute cell */
+		}
+	}
+
 	before = world_free(before);
 	return after;
 }
