@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <openssl/rand.h>
 #include "world.h"
@@ -28,6 +29,15 @@ struct world *world_random(void)
 			result->matrix[i][j] &= 11;
 
 	return result;
+}
+
+struct world *world_next_gen(struct world *before)
+{
+	struct world *after = malloc(sizeof(*before));
+
+	memcpy(after, before, sizeof(*before));
+	before = world_free(before);
+	return after;
 }
 
 struct world *world_free(struct world *w)
