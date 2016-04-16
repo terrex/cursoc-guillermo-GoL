@@ -11,3 +11,6 @@ main.o: main.c world.h
 
 check:
 	checkpatch.pl -q --no-tree -f --fix-inplace *.c
+
+clean:
+	$(RM) -R *.dSYM *.o juego-vida
