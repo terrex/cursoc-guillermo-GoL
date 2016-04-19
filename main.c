@@ -42,6 +42,8 @@ int main(void)
 
 	int it = 1;
 	struct world *w = world_random_with_size(rows, cols, density);
+	struct world *w1 = world_alloc(rows, cols);
+	struct world *wt;
 
 	BEEP();
 	printf(RESET_SCREEN "Mundo %d:\n", it++);
@@ -49,14 +51,19 @@ int main(void)
 	sleep(1);
 
 	do {
-		w = world_next_gen(w);
+		world_next_gen(w, w1);
+		/* swap world pointers */
+		wt = w1;
+		w1 = w;
+		w = wt;
 		BEEP();
 		printf(RESET_SCREEN "Mundo %d:\n", it++);
 		world_print(w);
 		sleep(1);
 	} while (it < 15);
 
-	w = world_free(w);
+	world_free(w);
+	world_free(w1);
 
 	return 0;
 }

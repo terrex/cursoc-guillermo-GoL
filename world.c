@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <openssl/rand.h>
+#include <assert.h>
 #include "world.h"
 
 #define ROWS 8
@@ -31,15 +32,11 @@ struct world *world_random(void)
 
 struct world *world_random_with_size(int rows, int cols, int density)
 {
-	struct world *result = (struct world *) (calloc(1, sizeof(struct world)));
-
-	result->rows = rows;
-	result->cols = cols;
-	result->matrix = (unsigned char *) (calloc(rows * cols, sizeof(unsigned char)));
+	struct world *result = world_alloc(rows, cols);
 
 	RAND_pseudo_bytes(result->matrix, result->rows * result->cols);
 
-	/* habrá un PERCENT_ALIVE % de células vivas en el mapa */
+	/* there will be a density percent of ALIVE cells on world */
 	unsigned char threshold = (unsigned char) ((float) density / 100.0 * 255.0);
 
 	for (int i = 0; i < result->rows; i++)
@@ -49,10 +46,13 @@ struct world *world_random_with_size(int rows, int cols, int density)
 	return result;
 }
 
-struct world *world_next_gen(struct world *before)
+void world_next_gen(const struct world *before, struct world *after)
 {
+	assert(before != NULL);
+	assert(after != NULL);
+	assert(before->rows == after->rows && before->cols == after->cols);
+
 	int neighbourhood;
-	struct world *after = world_dup(before);
 
 	for (int i = 0; i < after->rows; i++) {
 		for (int j = 0; j < after->cols; j++) {
@@ -75,23 +75,20 @@ before->matrix[((i + 1) % after->rows) * after->cols + (j + 1) % after->cols] ; 
 				after->matrix[i * after->cols + j] = DEAD;
 		}
 	}
-
-	before = world_free(before);
-	return after;
 }
 
-struct world *world_free(struct world *w)
+void world_free(struct world *w)
 {
-	if (w != NULL) {
+	if (w != NULL)
 		free(w->matrix);
-		free(w);
-	}
 
-	return NULL;
+	free(w);
 }
 
 void world_print(const struct world *w)
 {
+	assert(w != NULL);
+
 	int z = w->cols;
 
 	printf("/");
@@ -117,13 +114,30 @@ void world_print(const struct world *w)
 	printf("/\n");
 }
 
+void world_copy(struct world *dest, const struct world *src)
+{
+	assert(dest != NULL);
+	assert(src != NULL);
+	assert(dest->rows == src->rows && dest->cols == src->cols);
+
+	memcpy(dest->matrix, src->matrix, (dest->rows * dest->cols * sizeof(unsigned char)));
+}
+
+struct world *world_alloc(int rows, int cols)
+{
+	struct world *result = (struct world *) (malloc(sizeof(struct world)));
+
+	result->rows = rows;
+	result->cols = cols;
+	result->matrix = (unsigned char *) (malloc(rows * cols * sizeof(unsigned char)));
+
+	return result;
+}
+
 struct world *world_dup(const struct world *w)
 {
-	struct world *result = (struct world *) (malloc(sizeof(*w)));
+	struct world *result = world_alloc(w->rows, w->cols);
 
-	memcpy(result, w, sizeof(*w));
-	result->matrix = (unsigned char *) (malloc(w->rows * w->cols * sizeof(unsigned char)));
-	memcpy(result->matrix, w->matrix, (w->rows * w->cols * sizeof(unsigned char)));
-
+	world_copy(result, w);
 	return result;
 }
