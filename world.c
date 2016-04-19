@@ -54,17 +54,20 @@ void world_next_gen(const struct world *before, struct world *after)
 
 	int neighbourhood;
 
+	register int r = before->rows;
+	register int c = before->rows;
+
 	for (int i = 0; i < after->rows; i++) {
 		for (int j = 0; j < after->cols; j++) {
 			neighbourhood =
-before->matrix[((i - 1) % after->rows) * after->cols + (j - 1) % after->cols] + /* NW */
-before->matrix[((i - 1) % after->rows) * after->cols + (j + 0) % after->cols] + /* N */
-before->matrix[((i - 1) % after->rows) * after->cols + (j + 1) % after->cols] + /* NE */
-before->matrix[((i + 0) % after->rows) * after->cols + (j - 1) % after->cols] + /* W */
-before->matrix[((i + 0) % after->rows) * after->cols + (j + 1) % after->cols] + /* E */
-before->matrix[((i + 1) % after->rows) * after->cols + (j - 1) % after->cols] + /* SW */
-before->matrix[((i + 1) % after->rows) * after->cols + (j + 0) % after->cols] + /* S */
-before->matrix[((i + 1) % after->rows) * after->cols + (j + 1) % after->cols] ; /* SE */
+before->matrix[((i - 1 + r) % r) * c + (j - 1 + c) % c] + /* NW */
+before->matrix[((i - 1 + r) % r) * c + (j + 0 + c) % c] + /* N */
+before->matrix[((i - 1 + r) % r) * c + (j + 1 + c) % c] + /* NE */
+before->matrix[((i + 0 + r) % r) * c + (j - 1 + c) % c] + /* W */
+before->matrix[((i + 0 + r) % r) * c + (j + 1 + c) % c] + /* E */
+before->matrix[((i + 1 + r) % r) * c + (j - 1 + c) % c] + /* SW */
+before->matrix[((i + 1 + r) % r) * c + (j + 0 + c) % c] + /* S */
+before->matrix[((i + 1 + r) % r) * c + (j + 1 + c) % c] ; /* SE */
 
 			if (before->matrix[i * before->cols + j] == DEAD && neighbourhood == 3)
 				after->matrix[i * after->cols + j] = ALIVE;
