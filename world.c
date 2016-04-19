@@ -83,8 +83,7 @@ before->matrix[((i + 1) % after->rows) * after->cols + (j + 1) % after->cols] ; 
 struct world *world_free(struct world *w)
 {
 	if (w != NULL) {
-		if (w->matrix != NULL)
-			free(w->matrix);
+		free(w->matrix);
 		free(w);
 	}
 
