@@ -4,6 +4,7 @@
 #include <openssl/rand.h>
 #include <assert.h>
 #include "world.h"
+#define typeof __typeof__
 #include "list.h"
 
 #define ROWS 8
@@ -110,8 +111,9 @@ void world_next_gen(const struct world *before, struct world *after)
 		}
 	}
 	struct list_element *it, *_t;
-	list_for_each_entry(it, &before->alive_list, list) {
-		it->i;
+
+	list_for_each_entry_safe(it, _t, &(before->alive_list), list) {
+		printf("Celda viva: %d, %d\n", it->i, it->j);
 	}
 }
 
