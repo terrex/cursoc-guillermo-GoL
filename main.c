@@ -24,15 +24,15 @@ int main(int argc, char *argv[])
 	};
 	while ((c = getopt_long(argc, argv, "r:c:d:", long_options, &option_index)) != -1) {
 		switch (c) {
-			case 'r':
-				rows = strtol(optarg, NULL, 0);
-				break;
-			case 'c':
-				cols = strtol(optarg, NULL, 0);
-				break;
-			case 'd':
-				density = strtol(optarg, NULL, 0);
-				break;
+		case 'r':
+			rows = strtol(optarg, NULL, 0);
+			break;
+		case 'c':
+			cols = strtol(optarg, NULL, 0);
+			break;
+		case 'd':
+			density = strtol(optarg, NULL, 0);
+			break;
 		}
 	}
 
