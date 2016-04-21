@@ -109,6 +109,10 @@ void world_next_gen(const struct world *before, struct world *after)
 				_O_(after, i, j) = DEAD;
 		}
 	}
+	struct list_element *it, *_t;
+	list_for_each_entry(it, &before->alive_list, list) {
+		it->i;
+	}
 }
 
 void world_free(struct world *w)
