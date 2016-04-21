@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <openssl/rand.h>
 #include <assert.h>
+#include <stdbool.h>
 #include "world.h"
 #define typeof __typeof__
 #include "list.h"
@@ -12,12 +13,13 @@
 #define DEFAULT_DENSITY 22
 
 struct list_element {
-	unsigned short i;
-	unsigned short j;
+	int i;
+	int j;
 	struct list_head list;
+	bool marked_for_deletion;
 };
 
-static inline struct list_element *list_element_new(unsigned short i, unsigned short j)
+static inline struct list_element *list_element_new(int i, int j)
 {
 	struct list_element *result = malloc(sizeof(struct list_element));
 
@@ -27,8 +29,8 @@ static inline struct list_element *list_element_new(unsigned short i, unsigned s
 }
 
 struct world {
-	unsigned short rows;
-	unsigned short cols;
+	int rows;
+	int cols;
 	unsigned char *matrix;
 	struct list_head alive_list;
 };
@@ -58,7 +60,7 @@ struct world *world_random(void)
 	return world_random_with_size(ROWS, COLS, DEFAULT_DENSITY);
 }
 
-struct world *world_random_with_size(unsigned short rows, unsigned short cols, unsigned short density)
+struct world *world_random_with_size(int rows, int cols, int density)
 {
 	assert(density <= 100);
 	struct world *result = world_alloc(rows, cols);
@@ -83,37 +85,75 @@ struct world *world_random_with_size(unsigned short rows, unsigned short cols, u
 	return result;
 }
 
+static enum lifeness _next_state_of(const struct world *before, int i, int j)
+{
+	int neighbourhood;
+
+	neighbourhood =
+			_NW(before, i, j) + _N_(before, i, j) + _NE(before, i, j) +
+			_W_(before, i, j) + _E_(before, i, j) +
+			_SW(before, i, j) + _S_(before, i, j) + _SE(before, i, j);
+
+	if (_O_(before, i, j) == DEAD && neighbourhood == 3)
+		return ALIVE;
+	else if (_O_(before, i, j) == ALIVE &&
+			 (neighbourhood == 2 || neighbourhood == 3))
+		return ALIVE;
+	else
+		return DEAD;
+}
+
 void world_next_gen(const struct world *before, struct world *after)
 {
 	assert(before != NULL);
 	assert(after != NULL);
 	assert(before->rows == after->rows && before->cols == after->cols);
 
-	int neighbourhood;
-
-	register int r = before->rows;
-	register int c = before->cols;
-
-	for (int i = 0; i < r; i++) {
-		for (int j = 0; j < c; j++) {
-			neighbourhood =
-					_NW(before, i, j) + _N_(before, i, j) + _NE(before, i, j) +
-					_W_(before, i, j) + _E_(before, i, j) +
-					_SW(before, i, j) + _S_(before, i, j) + _SE(before, i, j);
-
-			if (_O_(before, i, j) == DEAD && neighbourhood == 3)
-				_O_(after, i, j) = ALIVE;
-			else if (_O_(before, i, j) == ALIVE &&
-				(neighbourhood == 2 || neighbourhood == 3))
-				_O_(after, i, j) = ALIVE;
-			else
-				_O_(after, i, j) = DEAD;
-		}
-	}
 	struct list_element *it, *_t;
 
+	struct list_head to_be_checked;
+
+	INIT_LIST_HEAD(&to_be_checked);
+
+	/* check now alive */
 	list_for_each_entry_safe(it, _t, &(before->alive_list), list) {
-		printf("Celda viva: %d, %d\n", it->i, it->j);
+		enum lifeness next_state;
+
+		next_state = _next_state_of(before, it->i, it->j);
+		if (next_state == DEAD) {
+			_O_(after, it->i, it->j) = next_state;
+
+			list_add(&list_element_new(it->i - 1, it->j - 1)->list, &to_be_checked);
+			list_add(&list_element_new(it->i - 1, it->j + 0)->list, &to_be_checked);
+			list_add(&list_element_new(it->i - 1, it->j + 1)->list, &to_be_checked);
+
+			list_add(&list_element_new(it->i + 0, it->j - 1)->list, &to_be_checked);
+			list_add(&list_element_new(it->i + 0, it->j + 1)->list, &to_be_checked);
+
+			list_add(&list_element_new(it->i + 1, it->j - 1)->list, &to_be_checked);
+			list_add(&list_element_new(it->i + 1, it->j + 0)->list, &to_be_checked);
+			list_add(&list_element_new(it->i + 1, it->j + 1)->list, &to_be_checked);
+
+			list_del(&it->list);
+			free(it);
+		}
+	}
+
+	/* check cells that may have changed their state */
+	list_for_each_entry_safe(it, _t, &(to_be_checked), list) {
+		enum lifeness next_state, previous_state;
+
+		previous_state = (enum lifeness) _O_(before, it->i, it->j);
+		next_state = _next_state_of(before, it->i, it->j);
+		if (previous_state == DEAD && next_state == ALIVE) {
+			_O_(after, it->i, it->j) = next_state;
+
+			list_add(&list_element_new(it->i, it->j)->list, &after->alive_list);
+		}
+
+		/* forget it anyway */
+		list_del(&it->list);
+		free(it);
 	}
 }
 
@@ -163,7 +203,7 @@ void world_copy(struct world *dest, const struct world *src)
 	memcpy(dest->matrix, src->matrix, (dest->rows * dest->cols * sizeof(unsigned char)));
 }
 
-struct world *world_alloc(unsigned short rows, unsigned short cols)
+struct world *world_alloc(int rows, int cols)
 {
 	struct world *result = (struct world *) (malloc(sizeof(struct world)));
 
