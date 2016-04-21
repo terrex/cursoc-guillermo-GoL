@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 {
 	int option_index = 0;
 	int c;
-	int rows = DEFAULT_ROWS, cols = DEFAULT_COLS, density = DEFAULT_DENSITY;
+	unsigned int rows = DEFAULT_ROWS, cols = DEFAULT_COLS, density = DEFAULT_DENSITY;
 	static struct option long_options[] = {
 			{"rows", required_argument, 0, 'r'},
 			{"cols", required_argument, 0, 'c'},
@@ -25,13 +25,13 @@ int main(int argc, char *argv[])
 	while ((c = getopt_long(argc, argv, "r:c:d:", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'r':
-			rows = strtol(optarg, NULL, 0);
+			rows = (unsigned short) strtol(optarg, NULL, 0);
 			break;
 		case 'c':
-			cols = strtol(optarg, NULL, 0);
+			cols = (unsigned short) strtol(optarg, NULL, 0);
 			break;
 		case 'd':
-			density = strtol(optarg, NULL, 0);
+			density = (unsigned short) strtol(optarg, NULL, 0);
 			break;
 		}
 	}

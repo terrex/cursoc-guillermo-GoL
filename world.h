@@ -5,9 +5,9 @@ struct world;
 
 struct world *world_random(void) __attribute__ ((deprecated));
 
-struct world *world_random_with_size(int rows, int cols, int density);
+struct world *world_random_with_size(unsigned short rows, unsigned short cols, unsigned short density);
 
-struct world *world_alloc(int rows, int cols);
+struct world *world_alloc(unsigned short rows, unsigned short cols);
 
 void world_next_gen(const struct world *before, struct world *after);
 
