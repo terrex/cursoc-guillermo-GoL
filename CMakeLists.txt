@@ -3,7 +3,7 @@ project(juego-vida)
 
 add_definitions(-std=c99)
 
-add_executable(juego-vida world.c world.h main.c)
+add_executable(juego-vida list.h world.c world.h main.c)
 target_link_libraries(juego-vida ssl crypto)
 
 add_custom_target(check

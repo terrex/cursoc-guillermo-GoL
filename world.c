@@ -11,15 +11,25 @@
 #define DEFAULT_DENSITY 22
 
 struct list_element {
-	unsigned int index;
+	unsigned short i;
+	unsigned short j;
 	struct list_head list;
 };
+
+static inline struct list_element * list_element_new(unsigned short i, unsigned short j) 
+{
+	struct list_element *result = malloc(sizeof(struct list_element));
+
+	result->i = i;
+	result->j = j;
+	return result;
+}
 
 struct world {
 	unsigned short rows;
 	unsigned short cols;
 	unsigned char *matrix;
-	struct list_element *alive_list;
+	struct list_head alive_list;
 };
 
 #define _NW(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
@@ -58,8 +68,16 @@ struct world *world_random_with_size(unsigned short rows, unsigned short cols, u
 	unsigned char threshold = (unsigned char) ((float) density / 100.0 * 255.0);
 
 	for (int i = 0; i < rows; i++)
-		for (int j = 0; j < cols; j++)
-			_O_(result, i, j) = (unsigned char) (_O_(result, i, j) < threshold);
+		for (int j = 0; j < cols; j++) {
+			enum lifeness ln = (enum lifeness) (_O_(result, i, j) < threshold);
+
+			_O_(result, i, j) = ln;
+			if (ln == ALIVE) {
+				struct list_element *le = list_element_new(i, j);
+
+				list_add(&le->list, &result->alive_list);
+			}
+		}
 
 	return result;
 }
@@ -146,6 +164,7 @@ struct world *world_alloc(unsigned short rows, unsigned short cols)
 	result->rows = rows;
 	result->cols = cols;
 	result->matrix = (unsigned char *) (malloc(rows * cols * sizeof(unsigned char)));
+	INIT_LIST_HEAD(&result->alive_list);
 
 	return result;
 }
