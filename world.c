@@ -10,16 +10,6 @@
 #define COLS 16
 #define DEFAULT_DENSITY 22
 
-#define _NW(i, j, r, c) (((((i) - 1 + (r)) % (r)) * (c)) + (((j) - 1 + (c)) % (c)))
-#define _N_(i, j, r, c) (((((i) - 1 + (r)) % (r)) * (c)) + (((j) + 0 + (c)) % (c)))
-#define _NE(i, j, r, c) (((((i) - 1 + (r)) % (r)) * (c)) + (((j) + 1 + (c)) % (c)))
-#define _W_(i, j, r, c) (((((i) - 0 + (r)) % (r)) * (c)) + (((j) - 1 + (c)) % (c)))
-#define _O_(i, j, r, c) (((((i) - 0 + (r)) % (r)) * (c)) + (((j) + 0 + (c)) % (c)))
-#define _E_(i, j, r, c) (((((i) - 0 + (r)) % (r)) * (c)) + (((j) + 1 + (c)) % (c)))
-#define _SW(i, j, r, c) (((((i) + 1 + (r)) % (r)) * (c)) + (((j) - 1 + (c)) % (c)))
-#define _S_(i, j, r, c) (((((i) + 1 + (r)) % (r)) * (c)) + (((j) + 0 + (c)) % (c)))
-#define _SE(i, j, r, c) (((((i) + 1 + (r)) % (r)) * (c)) + (((j) + 1 + (c)) % (c)))
-
 struct list_element {
 	unsigned int index;
 	struct list_head list;
@@ -31,6 +21,16 @@ struct world {
 	unsigned char *matrix;
 	struct list_element *alive_list;
 };
+
+#define _NW(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
+#define _N_(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 0 + (w->cols)) % (w->cols))])
+#define _NE(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 1 + (w->cols)) % (w->cols))])
+#define _W_(w, i, j) ((w)->matrix[((((i) + 0 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
+#define _O_(w, i, j) ((w)->matrix[((((i) + 0 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 0 + (w->cols)) % (w->cols))])
+#define _E_(w, i, j) ((w)->matrix[((((i) + 0 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 1 + (w->cols)) % (w->cols))])
+#define _SW(w, i, j) ((w)->matrix[((((i) + 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
+#define _S_(w, i, j) ((w)->matrix[((((i) + 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 0 + (w->cols)) % (w->cols))])
+#define _SE(w, i, j) ((w)->matrix[((((i) + 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 1 + (w->cols)) % (w->cols))])
 
 enum lifeness {
 	DEAD = 0,
@@ -59,7 +59,7 @@ struct world *world_random_with_size(unsigned short rows, unsigned short cols, u
 
 	for (int i = 0; i < rows; i++)
 		for (int j = 0; j < cols; j++)
-			result->matrix[_O_(i, j, rows, cols)] = (unsigned char) (result->matrix[_O_(i, j, rows, cols)] < threshold);
+			_O_(result, i, j) = (unsigned char) (_O_(result, i, j) < threshold);
 
 	return result;
 }
@@ -78,22 +78,17 @@ void world_next_gen(const struct world *before, struct world *after)
 	for (int i = 0; i < r; i++) {
 		for (int j = 0; j < c; j++) {
 			neighbourhood =
-					before->matrix[_NW(i, j, r, c)] +
-					before->matrix[_N_(i, j, r, c)] +
-					before->matrix[_NE(i, j, r, c)] +
-					before->matrix[_W_(i, j, r, c)] +
-					before->matrix[_E_(i, j, r, c)] +
-					before->matrix[_SW(i, j, r, c)] +
-					before->matrix[_S_(i, j, r, c)] +
-					before->matrix[_SE(i, j, r, c)];
+					_NW(before, i, j) + _N_(before, i, j) + _NE(before, i, j) +
+					_W_(before, i, j) + _E_(before, i, j) +
+					_SW(before, i, j) + _S_(before, i, j) + _SE(before, i, j);
 
-			if (before->matrix[_O_(i, j, r, c)] == DEAD && neighbourhood == 3)
-				after->matrix[_O_(i, j, r, c)] = ALIVE;
-			else if (before->matrix[_O_(i, j, r, c)] == ALIVE &&
+			if (_O_(before, i, j) == DEAD && neighbourhood == 3)
+				_O_(after, i, j) = ALIVE;
+			else if (_O_(before, i, j) == ALIVE &&
 				(neighbourhood == 2 || neighbourhood == 3))
-				after->matrix[_O_(i, j, r, c)] = ALIVE;
+				_O_(after, i, j) = ALIVE;
 			else
-				after->matrix[_O_(i, j, r, c)] = DEAD;
+				_O_(after, i, j) = DEAD;
 		}
 	}
 }
@@ -120,7 +115,7 @@ void world_print(const struct world *w)
 	for (int i = 0; i < w->rows; i++) {
 		printf("|");
 		for (int j = 0; j < w->cols; j++) {
-			if (w->matrix[_O_(i, j, w->rows, w->cols)] == ALIVE)
+			if (_O_(w, i, j) == ALIVE)
 				printf("o");
 			else
 				printf(" ");
