@@ -16,7 +16,7 @@ struct list_element {
 	struct list_head list;
 };
 
-static inline struct list_element * list_element_new(unsigned short i, unsigned short j) 
+static inline struct list_element *list_element_new(unsigned short i, unsigned short j)
 {
 	struct list_element *result = malloc(sizeof(struct list_element));
 

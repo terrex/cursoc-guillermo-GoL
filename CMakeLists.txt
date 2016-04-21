@@ -8,3 +8,6 @@ target_link_libraries(juego-vida ssl crypto)
 
 add_custom_target(check
         checkpatch.pl -q --no-tree -f --fix-inplace ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/*.h)
+
+add_custom_target(download
+        wget http://www.mcs.anl.gov/~kazutomo/list/list.h -O ${CMAKE_SOURCE_DIR}/list.h)
