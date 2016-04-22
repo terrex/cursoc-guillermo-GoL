@@ -8,6 +8,8 @@
 #define DEFAULT_ROWS 16
 #define DEFAULT_COLS 32
 #define DEFAULT_DENSITY 22
+#define DEFAULT_GENERATIONS 100
+#define DEFAULT_SPEED 100000
 
 #define BEEP() do { printf("\a"); fflush(stdout); } while (0)
 
@@ -15,23 +17,33 @@ int main(int argc, char *argv[])
 {
 	int option_index = 0;
 	int c;
-	unsigned int rows = DEFAULT_ROWS, cols = DEFAULT_COLS, density = DEFAULT_DENSITY;
+	int rows = DEFAULT_ROWS, cols = DEFAULT_COLS,
+			density = DEFAULT_DENSITY, generations = DEFAULT_GENERATIONS;
+	int speed = DEFAULT_SPEED;
 	static struct option long_options[] = {
 			{"rows", required_argument, 0, 'r'},
 			{"cols", required_argument, 0, 'c'},
 			{"density", required_argument, 0, 'd'},
+			{"generations", required_argument, 0, 'g'},
+			{"speed", required_argument, 0, 's'},
 			{0, 0, 0, 0}
 	};
-	while ((c = getopt_long(argc, argv, "r:c:d:", long_options, &option_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "r:c:d:g:s:", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'r':
-			rows = (unsigned short) strtol(optarg, NULL, 0);
+			rows = (int) strtol(optarg, NULL, 0);
 			break;
 		case 'c':
-			cols = (unsigned short) strtol(optarg, NULL, 0);
+			cols = (int) strtol(optarg, NULL, 0);
 			break;
 		case 'd':
-			density = (unsigned short) strtol(optarg, NULL, 0);
+			density = (int) strtol(optarg, NULL, 0);
+			break;
+		case 'g':
+			generations = (int) strtol(optarg, NULL, 0);
+			break;
+		case 's':
+			speed = (int) strtol(optarg, NULL, 0);
 			break;
 		}
 	}
@@ -43,8 +55,7 @@ int main(int argc, char *argv[])
 	struct world *w1 = world_alloc(rows, cols);
 	struct world *wt;
 
-	BEEP();
-	printf(RESET_SCREEN "Mundo %d:\n", it++);
+	printf(RESET_SCREEN "World #%d:\n", it++);
 	world_print(w);
 	sleep(1);
 
@@ -54,11 +65,10 @@ int main(int argc, char *argv[])
 		wt = w1;
 		w1 = w;
 		w = wt;
-		BEEP();
-		printf(RESET_SCREEN "Mundo %d:\n", it++);
+		printf(RESET_SCREEN "World #%d:\n", it++);
 		world_print(w);
-		sleep(1);
-	} while (it < 15);
+		usleep(speed);
+	} while (it < generations);
 
 	world_free(w);
 	world_free(w1);

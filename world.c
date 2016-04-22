@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <openssl/rand.h>
-#undef NDEBUG
 #include <assert.h>
-#include <stdbool.h>
-#include "world.h"
+#include <openssl/rand.h>
+#ifndef typeof
 #define typeof __typeof__
+#endif /* typeof */
 #include "list.h"
+#include "world.h"
 
 #define ROWS 8
 #define COLS 16
@@ -17,7 +17,6 @@ struct list_element {
 	int i;
 	int j;
 	struct list_head list;
-	bool marked_for_deletion;
 };
 
 static inline struct list_element *list_element_new(int i, int j)
@@ -96,7 +95,6 @@ static enum lifeness _next_state_of(const struct world *before, int i, int j)
 			_NW(before, i, j) + _N_(before, i, j) + _NE(before, i, j) +
 			_W_(before, i, j) + _E_(before, i, j) +
 			_SW(before, i, j) + _S_(before, i, j) + _SE(before, i, j);
-	fprintf(stderr, "[%d,%d] = %d\n", i, j, neighbourhood);
 
 	if (_O_(before, i, j) == DEAD && neighbourhood == 3)
 		return ALIVE;
@@ -107,21 +105,27 @@ static enum lifeness _next_state_of(const struct world *before, int i, int j)
 		return DEAD;
 }
 
+static void _world_reset(struct world *w)
+{
+	memset(w->matrix, DEAD, w->rows * w->cols);
+
+	INIT_LIST_HEAD(&w->alive_list);
+	w->alive_cells_count = 0;
+}
+
 void world_next_gen(struct world *before, struct world *after)
 {
 	assert(before != NULL);
 	assert(after != NULL);
 	assert(before->rows == after->rows && before->cols == after->cols);
 
-	struct list_element *it, *_t;
+	_world_reset(after);
 
+	struct list_element *it, *_t;
 	struct list_head to_be_checked;
 
+	/* make a list of current alive cells and its 8 neighbours for being later checked */
 	INIT_LIST_HEAD(&to_be_checked);
-
-	/* may a list of current alive cells and its 8 neighbours for being later checked */
-	int _dbg_alive_list_count = 0;
-
 	list_for_each_entry_safe(it, _t, &(before->alive_list), list) {
 		if (_NW(before, it->i, it->j) == DEAD)
 			list_add(&list_element_new(it->i - 1, it->j - 1)->list, &to_be_checked);
@@ -143,36 +147,26 @@ void world_next_gen(struct world *before, struct world *after)
 			list_add(&list_element_new(it->i + 1, it->j + 0)->list, &to_be_checked);
 		if (_SE(before, it->i, it->j) == DEAD)
 			list_add(&list_element_new(it->i + 1, it->j + 1)->list, &to_be_checked);
-		_dbg_alive_list_count++;
 	}
-	printf("DBG alive list count: %d\n", _dbg_alive_list_count);
 
 	/* alive_list should be empty now */
 	assert(list_empty(&before->alive_list));
 	assert(before->alive_cells_count == 0);
 
-	/* starting new alive_list*/
-	INIT_LIST_HEAD(&after->alive_list);
-	after->alive_cells_count = 0;
-
 	/* check cells that may have changed their state */
-	int _dbg_to_be_checked_list_count = 0;
-
 	list_for_each_entry_safe(it, _t, &(to_be_checked), list) {
 		enum lifeness next_state;
 
 		next_state = _next_state_of(before, it->i, it->j);
-		_O_(after, it->i, it->j) = next_state;
-		if (next_state == ALIVE) {
+		if (next_state == ALIVE && _O_(after, it->i, it->j) == DEAD) {
+			_O_(after, it->i, it->j) = ALIVE;
 			list_move(&it->list, &after->alive_list);
 			after->alive_cells_count++;
 		} else {
 			list_del(&it->list);
 			free(it);
 		}
-		_dbg_to_be_checked_list_count++;
 	}
-	printf("DBG to_be_checked list count: %d\n", _dbg_alive_list_count);
 
 	/* list to_be_checked must be empty now */
 	assert(list_empty(&to_be_checked));
@@ -213,7 +207,8 @@ void world_print(const struct world *w)
 	while (z--)
 		printf("-");
 	printf("/\n");
-	printf("Alive cells count: %d\n", w->alive_cells_count);
+	printf("Alive cells count: % 4d (% 3.2f%%)\n", w->alive_cells_count,
+		   (float) w->alive_cells_count / (w->cols * w->rows) * 100);
 }
 
 void world_copy(struct world *dest, const struct world *src)
