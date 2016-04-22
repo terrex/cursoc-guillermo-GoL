@@ -109,6 +109,13 @@ static void _world_reset(struct world *w)
 {
 	memset(w->matrix, DEAD, w->rows * w->cols);
 
+	struct list_element *it, *_t;
+
+	list_for_each_entry_safe(it, _t, &w->alive_list, list) {
+		list_del(&it->list);
+		free(it);
+	}
+
 	INIT_LIST_HEAD(&w->alive_list);
 	w->alive_cells_count = 0;
 }
