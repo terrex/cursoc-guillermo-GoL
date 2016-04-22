@@ -177,6 +177,13 @@ void world_free(struct world *w)
 	if (w != NULL)
 		free(w->matrix);
 
+	struct list_element *it, *_t;
+
+	list_for_each_entry_safe(it, _t, &w->alive_list, list) {
+		list_del(&it->list);
+		free(it);
+	}
+
 	free(w);
 }
 
