@@ -207,7 +207,7 @@ void world_print(const struct world *w)
 	while (z--)
 		printf("-");
 	printf("/\n");
-	printf("Alive cells count: % 4d (% 3.2f%%)\n", w->alive_cells_count,
+	printf("Alive cells count: %5d  (%5.2f%%)\n", w->alive_cells_count,
 		   (float) w->alive_cells_count / (w->cols * w->rows) * 100);
 }
 
