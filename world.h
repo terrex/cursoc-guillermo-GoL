@@ -9,7 +9,7 @@ struct world *world_random_with_size(int rows, int cols, int density);
 
 struct world *world_alloc(int rows, int cols);
 
-void world_next_gen(const struct world *before, struct world *after);
+void world_next_gen(struct world *before, struct world *after);
 
 void world_free(struct world *w);
 
