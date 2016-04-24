@@ -2,7 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <openssl/rand.h>
+#include <time.h>
+
 #ifndef typeof
 #define typeof __typeof__
 #endif /* typeof */
@@ -27,6 +28,8 @@ static inline struct list_element *list_element_new(int i, int j)
 	result->j = j;
 	return result;
 }
+
+static void _world_reset(struct world *w);
 
 struct world {
 	int rows;
@@ -61,28 +64,38 @@ struct world *world_random(void)
 	return world_random_with_size(ROWS, COLS, DEFAULT_DENSITY);
 }
 
+static inline int rrand(int from, int to)
+{
+	return rand() % (to - from + 1) + from;
+}
+
 struct world *world_random_with_size(int rows, int cols, int density)
 {
 	assert(density <= 100);
 	struct world *result = world_alloc(rows, cols);
 
-	RAND_pseudo_bytes(result->matrix, rows * cols);
+	_world_reset(result);
+	int to_be_alive = rows * cols * density / 100;
+	int collisions = 0;
 
-	/* there will be a density percent of ALIVE cells on world */
-	unsigned char threshold = (unsigned char) ((float) density / 100.0 * 255.0);
+	srand((unsigned int) time(0));
 
-	for (int i = 0; i < rows; i++)
-		for (int j = 0; j < cols; j++) {
-			enum lifeness ln = (enum lifeness) (_O_(result, i, j) < threshold);
+	while (result->alive_cells_count < to_be_alive) {
+		int i = rrand(0, rows);
+		int j = rrand(0, cols);
 
-			_O_(result, i, j) = ln;
-			if (ln == ALIVE) {
-				struct list_element *le = list_element_new(i, j);
+		if (_O_(result, i, j) == DEAD) {
+			_O_(result, i, j) = ALIVE;
+			struct list_element *le = list_element_new(i, j);
 
-				list_add(&le->list, &result->alive_list);
-				result->alive_cells_count++;
-			}
+			list_add(&le->list, &result->alive_list);
+			result->alive_cells_count++;
+			collisions = 0;
+		} else {
+			if (collisions++ >= 3)
+				to_be_alive--;
 		}
+	}
 
 	return result;
 }
