@@ -3,8 +3,11 @@ project(juego-vida)
 
 add_definitions(-std=c99)
 
-add_executable(juego-vida world.c world.h main.c)
+add_executable(juego-vida list.h world.c world.h main.c)
 target_link_libraries(juego-vida ssl crypto)
 
 add_custom_target(check
-        checkpatch.pl -q --no-tree -f --fix-inplace ${CMAKE_SOURCE_DIR}/*.c)
+        checkpatch.pl -q --no-tree -f --fix-inplace ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/*.h)
+
+add_custom_target(download
+        wget "http://www.mcs.anl.gov/~kazutomo/list/list.h" -O "${CMAKE_SOURCE_DIR}/list.h")
