@@ -25,6 +25,15 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 	int option_index = 0;
 	int c;
 	FILE *fconfig;
+	int newargc = 1;
+	char *newargv_p[30];
+	char newargv_v[30][256];
+	char buf[256];
+	int oldoptind;
+
+	strncpy(newargv_v[0], argv[0], 256);
+	newargv_p[0] = newargv_v[0];
+	newargv_p[1] = NULL;
 
 	static struct option long_options[] = {
 		{"rows", required_argument, 0, 'r'},
@@ -53,8 +62,21 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 			gc->speed = (int) strtol(optarg, NULL, 0);
 			break;
 		case 'f':
+			strncpy(gc->file_config, optarg, 256);
 			fconfig = fopen(optarg, "r");
+			while (!feof(fconfig) && fscanf(fconfig, "%256s", buf)) {
+				if (strlen(buf) > 0) {
+					strncpy(newargv_v[newargc], buf, 256);
+					newargv_p[newargc] = newargv_v[newargc];
+					newargv_p[newargc + 1] = NULL;
+					newargc++;
+				}
+			}
 			fclose(fconfig);
+			oldoptind = optind;
+			optind = 0;
+			game_parse_command_line_options(newargc, newargv_p, gc);
+			optind = oldoptind;
 			break;
 		}
 	}
