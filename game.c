@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include "game.h"
 #include "world.h"
 
@@ -21,6 +22,8 @@ void game_config_defaults(struct game_config *gc)
 	gc->file_config[0] = '\0';
 	gc->output[0] = '\0';
 	gc->output_fp = NULL;
+	gc->write_world[0] = '\0';
+	gc->load_world[0] = '\0';
 }
 
 void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc)
@@ -33,6 +36,7 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 	char newargv_v[30][256];
 	char buf[256];
 	int oldoptind;
+	FILE *load_fp;
 
 	strncpy(newargv_v[0], argv[0], 256);
 	newargv_p[0] = newargv_v[0];
@@ -46,9 +50,11 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 		{"speed", required_argument, 0, 's'},
 		{"file", required_argument, 0, 'f'},
 		{"output", required_argument, 0, 'o'},
+		{"write-world", required_argument, 0, 'w'},
+		{"load-world", required_argument, 0, 'l'},
 		{0, 0, 0, 0},
 	};
-	while ((c = getopt_long(argc, argv, "r:c:d:g:s:f:o:", long_options, &option_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "r:c:d:g:s:f:o:w:l:", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'r':
 			gc->rows = (int) strtol(optarg, NULL, 0);
@@ -67,6 +73,15 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 			break;
 		case 'o':
 			strncpy(gc->output, optarg, 256);
+			break;
+		case 'w':
+			strncpy(gc->write_world, optarg, 256);
+			break;
+		case 'l':
+			load_fp = fopen(optarg, "r");
+			fread(gc, sizeof(struct game_config), 1, load_fp);
+			fclose(load_fp);
+			strncpy(gc->load_world, optarg, 256);
 			break;
 		case 'f':
 			strncpy(gc->file_config, optarg, 256);
@@ -106,5 +121,48 @@ void game_log_stop(struct game_config *gc)
 	if (gc->output_fp != NULL) {
 		fclose(gc->output_fp);
 		gc->output_fp = NULL;
+	}
+}
+
+void game_write(const struct game_config *gc, const struct world *w)
+{
+	FILE *write_fp;
+
+	if (gc->write_world[0] != '\0') {
+		write_fp = fopen(gc->write_world, "w+");
+		fwrite(gc, sizeof(struct game_config), 1, write_fp);
+		fwrite(w, sizeof(struct world), 1, write_fp);
+		fwrite(w->matrix, sizeof(unsigned char), (size_t)(w->cols * w->rows), write_fp);
+		fclose(write_fp);
+	}
+}
+
+void game_alloc_n_load(struct game_config *gc, struct world **w)
+{
+	FILE *load_fp;
+
+	if (gc->load_world[0] != '\0') {
+		load_fp = fopen(gc->load_world, "r");
+		/* load config in parsing time, to allow overwrite of params in next run */
+		fseek(load_fp, sizeof(struct game_config), SEEK_CUR);
+		*w = malloc(sizeof(struct world));
+		fread(*w, sizeof(struct world), 1, load_fp);
+		assert((*w)->rows == gc->rows && (*w)->cols == gc->cols);
+		(*w)->matrix = (unsigned char *) (malloc((*w)->rows * (*w)->cols * sizeof(unsigned char)));
+		fread((*w)->matrix, sizeof(unsigned char), (size_t)((*w)->cols * (*w)->rows), load_fp);
+		fclose(load_fp);
+
+		INIT_LIST_HEAD(&(*w)->alive_list);
+		(*w)->alive_cells_count = 0;
+		for (int i = 0; i < (*w)->rows; i++) {
+			for (int j = 0; j < (*w)->cols; j++) {
+				if (_O_((*w), i, j) == ALIVE) {
+					struct list_element *le = list_element_new(i, j);
+
+					list_add(&le->list, &(*w)->alive_list);
+					(*w)->alive_cells_count++;
+				}
+			}
+		}
 	}
 }

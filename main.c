@@ -14,7 +14,12 @@ int main(int argc, char *argv[])
 
 	/* ===== Run program ===== */
 
-	struct world *w = world_random_with_size(gc.rows, gc.cols, gc.density);
+	struct world *w;
+
+	if (gc.load_world[0] == '\0')
+		w = world_random_with_size(gc.rows, gc.cols, gc.density);
+	else
+		game_alloc_n_load(&gc, &w);
 	struct world *w1 = world_alloc(gc.rows, gc.cols);
 	struct world *wt;
 
@@ -23,6 +28,8 @@ int main(int argc, char *argv[])
 	world_print(w);
 	game_log_output(&gc, w);
 	sleep(1);
+
+	int gens = 1;
 
 	do {
 		world_next_gen(w, w1);
@@ -34,9 +41,10 @@ int main(int argc, char *argv[])
 		world_print(w);
 		usleep(gc.speed);
 		game_log_output(&gc, w);
-	} while (w->generation < gc.generations);
+	} while (++gens < gc.generations);
 
 	game_log_stop(&gc);
+	game_write(&gc, w);
 
 	world_free(w);
 	world_free(w1);
