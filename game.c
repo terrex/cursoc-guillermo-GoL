@@ -143,7 +143,10 @@ void game_alloc_n_load(struct game_config *gc, struct world **w)
 
 	if (gc->load_world[0] != '\0') {
 		load_fp = fopen(gc->load_world, "r");
-		/* load config in parsing time, to allow overwrite of params in next run */
+		/*
+		 * load config in opt parsing time, not now,
+		 * to allow overwrite of params in next run after -l
+		 */
 		fseek(load_fp, sizeof(struct game_config), SEEK_CUR);
 		*w = malloc(sizeof(struct world));
 		fread(*w, sizeof(struct world), 1, load_fp);

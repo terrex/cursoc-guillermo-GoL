@@ -20,11 +20,8 @@ add_test(NAME command_line_parsing_complex
 add_test(NAME output_stats_for_gnuplot
         COMMAND juego-vida -g 15 -o juego-vida.plot)
 
-add_test(NAME save_output
-        COMMAND juego-vida -g 15 -w juego-vida.dat)
-
 add_test(NAME save_and_continue1
-        COMMAND juego-vida -r 10 -c 20 -g 15 -w juego-vida.dat -l juego-vida.dat)
+        COMMAND juego-vida -r 10 -c 20 -g 15 -w juego-vida.dat)
 
 add_test(NAME save_and_continue2
-        COMMAND juego-vida -g 15 -w juego-vida.dat -l juego-vida.dat -o juego-vida.plot)
+        COMMAND juego-vida -l juego-vida.dat -g 20 -w juego-vida.dat -o juego-vida.plot)
