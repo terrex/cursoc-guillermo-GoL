@@ -14,13 +14,14 @@ int main(int argc, char *argv[])
 
 	/* ===== Run program ===== */
 
-	int it = 1;
 	struct world *w = world_random_with_size(gc.rows, gc.cols, gc.density);
 	struct world *w1 = world_alloc(gc.rows, gc.cols);
 	struct world *wt;
 
-	printf(RESET_SCREEN "World #%d:\n", it++);
+	game_log_start(&gc);
+	printf(RESET_SCREEN "World #%d:\n", w->generation);
 	world_print(w);
+	game_log_output(&gc, w);
 	sleep(1);
 
 	do {
@@ -29,10 +30,13 @@ int main(int argc, char *argv[])
 		wt = w1;
 		w1 = w;
 		w = wt;
-		printf(RESET_SCREEN "World #%d:\n", it++);
+		printf(RESET_SCREEN "World #%d:\n", w->generation);
 		world_print(w);
 		usleep(gc.speed);
-	} while (it < gc.generations);
+		game_log_output(&gc, w);
+	} while (w->generation < gc.generations);
+
+	game_log_stop(&gc);
 
 	world_free(w);
 	world_free(w1);

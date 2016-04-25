@@ -1,7 +1,16 @@
 #ifndef __WORLD_H__
 #define __WORLD_H__
 
-struct world;
+#include "list.h"
+
+struct world {
+    int rows;
+    int cols;
+    unsigned char *matrix;
+    struct list_head alive_list;
+    int alive_cells_count;
+    int generation;
+};
 
 struct world *world_random(void) __attribute__ ((deprecated));
 

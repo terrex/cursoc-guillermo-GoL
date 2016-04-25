@@ -15,4 +15,7 @@ add_custom_target(download
 enable_testing()
 
 add_test(NAME command_line_parsing_complex
-        COMMAND ${CMAKE_BINARY_DIR}/juego-vida -f ${CMAKE_SOURCE_DIR}/juego-vida.args -d 45 -f ${CMAKE_SOURCE_DIR}/juego-vida.args -r 5 -c 2 -d 50 -f ${CMAKE_SOURCE_DIR}/juego-vida.args -d 50 -r 10 -c 50 -g 5)
+        COMMAND juego-vida -f ${CMAKE_SOURCE_DIR}/juego-vida.args -d 45 -f ${CMAKE_SOURCE_DIR}/juego-vida.args -r 5 -c 2 -d 50 -f ${CMAKE_SOURCE_DIR}/juego-vida.args -d 50 -r 10 -c 50 -g 5)
+
+add_test(NAME output_stats_for_gnuplot
+        COMMAND juego-vida -g 15 -o juego-vida.plot)

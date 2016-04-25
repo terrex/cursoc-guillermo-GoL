@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "game.h"
+#include "world.h"
 
 #define DEFAULT_ROWS 16
 #define DEFAULT_COLS 32
@@ -17,7 +18,9 @@ void game_config_defaults(struct game_config *gc)
 	gc->density = DEFAULT_DENSITY;
 	gc->generations = DEFAULT_GENERATIONS;
 	gc->speed = DEFAULT_SPEED;
-	strcpy(gc->file_config, "");
+	gc->file_config[0] = '\0';
+	gc->output[0] = '\0';
+	gc->output_fp = NULL;
 }
 
 void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc)
@@ -42,9 +45,10 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 		{"generations", required_argument, 0, 'g'},
 		{"speed", required_argument, 0, 's'},
 		{"file", required_argument, 0, 'f'},
+		{"output", required_argument, 0, 'o'},
 		{0, 0, 0, 0},
 	};
-	while ((c = getopt_long(argc, argv, "r:c:d:g:s:f:", long_options, &option_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "r:c:d:g:s:f:o:", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'r':
 			gc->rows = (int) strtol(optarg, NULL, 0);
@@ -60,6 +64,9 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 			break;
 		case 's':
 			gc->speed = (int) strtol(optarg, NULL, 0);
+			break;
+		case 'o':
+			strncpy(gc->output, optarg, 256);
 			break;
 		case 'f':
 			strncpy(gc->file_config, optarg, 256);
@@ -79,5 +86,25 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 			optind = oldoptind;
 			break;
 		}
+	}
+}
+
+void game_log_start(struct game_config *gc)
+{
+	if (gc->output[0] != '\0')
+		gc->output_fp = fopen(gc->output, "w+");
+}
+
+void game_log_output(const struct game_config *gc, const struct world *w)
+{
+	if (gc->output_fp != NULL)
+		fprintf(gc->output_fp, "%d\t%d\n", w->generation, w->alive_cells_count);
+}
+
+void game_log_stop(struct game_config *gc)
+{
+	if (gc->output_fp != NULL) {
+		fclose(gc->output_fp);
+		gc->output_fp = NULL;
 	}
 }

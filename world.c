@@ -31,14 +31,6 @@ static inline struct list_element *list_element_new(int i, int j)
 
 static void _world_reset(struct world *w);
 
-struct world {
-	int rows;
-	int cols;
-	unsigned char *matrix;
-	struct list_head alive_list;
-	int alive_cells_count;
-};
-
 #define _NW(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
 #define _N_(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 0 + (w->cols)) % (w->cols))])
 #define _NE(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 1 + (w->cols)) % (w->cols))])
@@ -97,6 +89,7 @@ struct world *world_random_with_size(int rows, int cols, int density)
 		}
 	}
 
+	result->generation = 1;
 	return result;
 }
 
@@ -131,6 +124,7 @@ static void _world_reset(struct world *w)
 
 	INIT_LIST_HEAD(&w->alive_list);
 	w->alive_cells_count = 0;
+	w->generation = 0;
 }
 
 void world_next_gen(struct world *before, struct world *after)
@@ -190,6 +184,7 @@ void world_next_gen(struct world *before, struct world *after)
 
 	/* list to_be_checked must be empty now */
 	assert(list_empty(&to_be_checked));
+	after->generation = before->generation + 1;
 }
 
 void world_free(struct world *w)
@@ -256,6 +251,7 @@ struct world *world_alloc(int rows, int cols)
 	result->matrix = (unsigned char *) (malloc(rows * cols * sizeof(unsigned char)));
 	INIT_LIST_HEAD(&result->alive_list);
 	result->alive_cells_count = 0;
+	result->generation =  0;
 
 	return result;
 }
