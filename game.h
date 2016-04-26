@@ -5,8 +5,8 @@
 #include "world.h"
 
 enum game_type {
-	TYPE_TOROIDAL,
 	TYPE_NORMAL,
+	TYPE_TOROIDAL,
 };
 
 struct game_config {

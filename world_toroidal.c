@@ -41,6 +41,7 @@ void world_toroidal_init(struct world_toroidal *this, int rows, int cols)
 
 void world_toroidal_free(struct world_toroidal *w)
 {
+    fprintf(stderr, "estoy en world_toroidal_free");
     world_free(&w->super);
 }
 

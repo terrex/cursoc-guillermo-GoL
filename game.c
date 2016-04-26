@@ -24,7 +24,7 @@ void game_config_defaults(struct game_config *gc)
 	gc->output_fp = NULL;
 	gc->write_world[0] = '\0';
 	gc->load_world[0] = '\0';
-	gc->game_type = TYPE_TOROIDAL;
+	gc->game_type = TYPE_NORMAL;
 }
 
 void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc)
