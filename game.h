@@ -33,7 +33,7 @@ void game_log_output(const struct game_config *gc, const struct world *w);
 
 void game_log_stop(struct game_config *gc);
 
-void game_write(const struct game_config *gc, const struct world *w);
+void game_write(struct game_config *gc, const struct world *w);
 
 void game_alloc_n_load(struct game_config *gc, struct world **w);
 
