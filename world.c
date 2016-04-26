@@ -31,14 +31,6 @@ static void _world_init_empty(struct world *this);
 
 static void _world_init_density(struct world *this, int density);
 
-static unsigned char _world_get_cell(const struct world *this, int i, int j);
-
-static void _world_set_cell(struct world *this, int i, int j, unsigned char lifeness);
-
-static unsigned char _world_get_cell_previous(const struct world *this, int i, int j);
-
-static void _world_set_cell_previous(struct world *this, int i, int j, unsigned char lifeness);
-
 static inline int _rrand(int from, int to)
 {
 	return rand() % (to - from) + from;
@@ -101,10 +93,10 @@ void world_init(struct world *this, int rows, int cols)
 	this->init_with_density = _world_init_density;
 	this->next_gen = _world_next_gen;
 	this->print = _world_print;
-	this->get_cell = _world_get_cell;
-	this->set_cell = _world_set_cell;
-	this->get_cell_previous = _world_get_cell_previous;
-	this->set_cell_previous = _world_set_cell_previous;
+	this->get_cell = NULL;
+	this->set_cell = NULL;
+	this->get_cell_previous = NULL;
+	this->set_cell_previous = NULL;
 	this->load = _world_load;
 	this->save = _world_save;
 }
@@ -158,62 +150,6 @@ static void _world_init_density(struct world *this, int density)
 	}
 
 	this->generation = 1;
-}
-
-
-static unsigned char _world_get_cell(const struct world *this, int i, int j)
-{
-	if (i < 0)
-		i = 0;
-	if (i >= this->rows)
-		i = this->rows - 1;
-	if (j < 0)
-		j = 0;
-	if (j >= this->cols)
-		j = this->cols - 1;
-	return this->current_matrix[this->cols * i + j];
-}
-
-
-static void _world_set_cell(struct world *this, int i, int j, unsigned char lifeness)
-{
-	if (i < 0)
-		i = 0;
-	if (i >= this->rows)
-		i = this->rows - 1;
-	if (j < 0)
-		j = 0;
-	if (j >= this->cols)
-		j = this->cols - 1;
-	this->current_matrix[this->cols * i + j] = lifeness;
-}
-
-
-static unsigned char _world_get_cell_previous(const struct world *this, int i, int j)
-{
-	if (i < 0)
-		i = 0;
-	if (i >= this->rows)
-		i = this->rows - 1;
-	if (j < 0)
-		j = 0;
-	if (j >= this->cols)
-		j = this->cols - 1;
-	return this->previous_matrix[this->cols * i + j];
-}
-
-
-static void _world_set_cell_previous(struct world *this, int i, int j, unsigned char lifeness)
-{
-	if (i < 0)
-		i = 0;
-	if (i >= this->rows)
-		i = this->rows - 1;
-	if (j < 0)
-		j = 0;
-	if (j >= this->cols)
-		j = this->cols - 1;
-	this->previous_matrix[this->cols * i + j] = lifeness;
 }
 
 

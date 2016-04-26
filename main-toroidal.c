@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
-#include "world_normal.h"
+#include "world_toroidal.h"
 #include "game.h"
 
 #define RESET_SCREEN "\x1B[1;1H\x1B[2J"
@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 	struct world *w;
 
 	if (gc.load_world[0] == '\0') {
-		w = (struct world *) world_normal_alloc(gc.rows, gc.cols);
+		w = (struct world *)world_toroidal_alloc(gc.rows, gc.cols);
 		w->init_with_density(w, gc.density);
 	} else
 		game_alloc_n_load(&gc, &w);
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 	game_log_stop(&gc);
 	game_write(&gc, w);
 
-	world_normal_free((struct world_normal *) w);
+	world_toroidal_free((struct world_toroidal *) w);
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "world.h"
+#include "world_normal.h"
 #include "game.h"
 
 #define DEFAULT_ROWS 16
@@ -146,7 +146,7 @@ void game_alloc_n_load(struct game_config *gc, struct world **w)
 		 * to allow overwrite of params in next run after -l
 		 */
 		fseek(load_fp, sizeof(struct game_config), SEEK_CUR);
-		*w = world_alloc(gc->rows, gc->cols);
+		*w = (struct world *)world_normal_alloc(gc->rows, gc->cols);
 		(*w)->load(*w, load_fp);
 		fclose(load_fp);
 	}
