@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "world_toroidal.h"
 #include "world_normal.h"
 #include "game.h"
 
@@ -23,6 +24,7 @@ void game_config_defaults(struct game_config *gc)
 	gc->output_fp = NULL;
 	gc->write_world[0] = '\0';
 	gc->load_world[0] = '\0';
+	gc->game_type = TYPE_TOROIDAL;
 }
 
 void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc)
@@ -51,10 +53,18 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 		{"output", required_argument, 0, 'o'},
 		{"write-world", required_argument, 0, 'w'},
 		{"load-world", required_argument, 0, 'l'},
+		{"normal", no_argument, 0, 0},
+		{"toroidal", no_argument, 0, 0},
 		{0, 0, 0, 0},
 	};
 	while ((c = getopt_long(argc, argv, "r:c:d:g:s:f:o:w:l:", long_options, &option_index)) != -1) {
 		switch (c) {
+		case 0:
+			if (strcmp("normal", long_options[option_index].name))
+				gc->game_type = TYPE_NORMAL;
+			else if (strcmp("toroidal", long_options[option_index].name))
+				gc->game_type = TYPE_TOROIDAL;
+			break;
 		case 'r':
 			gc->rows = (int) strtol(optarg, NULL, 0);
 			break;
@@ -146,7 +156,10 @@ void game_alloc_n_load(struct game_config *gc, struct world **w)
 		 * to allow overwrite of params in next run after -l
 		 */
 		fseek(load_fp, sizeof(struct game_config), SEEK_CUR);
-		*w = (struct world *)world_normal_alloc(gc->rows, gc->cols);
+		if (gc->game_type == TYPE_NORMAL)
+			*w = (struct world *)world_normal_alloc(gc->rows, gc->cols);
+		else if (gc->game_type == TYPE_TOROIDAL)
+			*w = (struct world *)world_toroidal_alloc(gc->rows, gc->cols);
 		(*w)->load(*w, load_fp);
 		fclose(load_fp);
 	}
