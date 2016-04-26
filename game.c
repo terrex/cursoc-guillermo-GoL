@@ -60,9 +60,9 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 	while ((c = getopt_long(argc, argv, "r:c:d:g:s:f:o:w:l:", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 0:
-			if (strcmp("normal", long_options[option_index].name))
+			if (strcmp("normal", long_options[option_index].name) == 0)
 				gc->game_type = TYPE_NORMAL;
-			else if (strcmp("toroidal", long_options[option_index].name))
+			else if (strcmp("toroidal", long_options[option_index].name) == 0)
 				gc->game_type = TYPE_TOROIDAL;
 			break;
 		case 'r':

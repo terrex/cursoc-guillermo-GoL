@@ -41,38 +41,37 @@ void world_toroidal_init(struct world_toroidal *this, int rows, int cols)
 
 void world_toroidal_free(struct world_toroidal *w)
 {
-    fprintf(stderr, "estoy en world_toroidal_free");
     world_free(&w->super);
 }
 
 
 static unsigned char _world_toroidal_get_cell(const struct world *this, int i, int j)
 {
-    i = i % this->rows;
-    j = j % this->cols;
+    i = (i % this->rows + this->rows) % this->rows;
+    j = (j % this->cols + this->cols) % this->cols;
     return this->current_matrix[this->cols * i + j];
 }
 
 
 static void _world_toroidal_set_cell(struct world *this, int i, int j, unsigned char lifeness)
 {
-    i = i % this->rows;
-    j = j % this->cols;
+    i = (i % this->rows + this->rows) % this->rows;
+    j = (j % this->cols + this->cols) % this->cols;
     this->current_matrix[this->cols * i + j] = lifeness;
 }
 
 
 static unsigned char _world_toroidal_get_cell_previous(const struct world *this, int i, int j)
 {
-    i = i % this->rows;
-    j = j % this->cols;
+    i = (i % this->rows + this->rows) % this->rows;
+    j = (j % this->cols + this->cols) % this->cols;
     return this->previous_matrix[this->cols * i + j];
 }
 
 
 static void _world_toroidal_set_cell_previous(struct world *this, int i, int j, unsigned char lifeness)
 {
-    i = i % this->rows;
-    j = j % this->cols;
+    i = (i % this->rows + this->rows) % this->rows;
+    j = (j % this->cols + this->cols) % this->cols;
     this->previous_matrix[this->cols * i + j] = lifeness;
 }
