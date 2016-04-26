@@ -1,24 +1,11 @@
-#ifndef __WORLD_H__
-#define __WORLD_H__
+#ifndef __WORLD_NORMAL_H__
+#define __WORLD_NORMAL_H__
 
-#include <stdint.h>
+#include <stdio.h>
+#include "world.h"
 
-#include "list.h"
-
-enum lifeness {
-    DEAD = 0,
-    ALIVE = 1,
-};
-
-struct world {
-    int rows;
-    int cols;
-    unsigned char *previous_matrix;
-    unsigned char *current_matrix;
-    struct list_head alive_list;
-    int alive_cells_count;
-    int generation;
-    uint32_t flags;
+struct world_normal {
+    struct world super;
 
     void (*init_empty)(struct world *this);
     void (*init_with_density)(struct world *this, int density);
@@ -33,10 +20,10 @@ struct world {
     void (*save)(const struct world *this, FILE *stream);
 };
 
-struct world *world_alloc(int rows, int cols);
+struct world_normal *world_normal_alloc(int rows, int cols);
 
-void world_init(struct world *this, int rows, int cols);
+void world_normal_init(struct world_normal *this, int rows, int cols);
 
-void world_free(struct world *w);
+void world_normal_free(struct world_normal *w);
 
-#endif /* __WORLD_H__ */
+#endif /* __WORLD_NORMAL_H__ */

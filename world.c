@@ -80,28 +80,33 @@ struct world *world_alloc(int rows, int cols)
 {
 	struct world *result = (struct world *) (malloc(sizeof(struct world)));
 
-	result->rows = rows;
-	result->cols = cols;
-	result->current_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
-	result->previous_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
-	result->flags = 0;
-	result->flags |= (1 << WORLD_MATRICES_ALLOCATED);
-	INIT_LIST_HEAD(&result->alive_list);
-	result->alive_cells_count = 0;
-	result->generation =  0;
-
-	result->init_empty = _world_init_empty;
-	result->init_with_density = _world_init_density;
-	result->next_gen = _world_next_gen;
-	result->print = _world_print;
-	result->get_cell = _world_get_cell;
-	result->set_cell = _world_set_cell;
-	result->get_cell_previous = _world_get_cell_previous;
-	result->set_cell_previous = _world_set_cell_previous;
-	result->load = _world_load;
-	result->save = _world_save;
+	world_init(result, rows, cols);
 
 	return result;
+}
+
+void world_init(struct world *this, int rows, int cols)
+{
+	this->rows = rows;
+	this->cols = cols;
+	this->current_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
+	this->previous_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
+	this->flags = 0;
+	this->flags |= (1 << WORLD_MATRICES_ALLOCATED);
+	INIT_LIST_HEAD(&this->alive_list);
+	this->alive_cells_count = 0;
+	this->generation =  0;
+
+	this->init_empty = _world_init_empty;
+	this->init_with_density = _world_init_density;
+	this->next_gen = _world_next_gen;
+	this->print = _world_print;
+	this->get_cell = _world_get_cell;
+	this->set_cell = _world_set_cell;
+	this->get_cell_previous = _world_get_cell_previous;
+	this->set_cell_previous = _world_set_cell_previous;
+	this->load = _world_load;
+	this->save = _world_save;
 }
 
 
