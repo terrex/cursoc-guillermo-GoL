@@ -2,9 +2,8 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
-#include "game.h"
 #include "world.h"
+#include "game.h"
 
 #define DEFAULT_ROWS 16
 #define DEFAULT_COLS 32
@@ -131,8 +130,7 @@ void game_write(const struct game_config *gc, const struct world *w)
 	if (gc->write_world[0] != '\0') {
 		write_fp = fopen(gc->write_world, "w+");
 		fwrite(gc, sizeof(struct game_config), 1, write_fp);
-		fwrite(w, sizeof(struct world), 1, write_fp);
-		fwrite(w->matrix, sizeof(unsigned char), (size_t)(w->cols * w->rows), write_fp);
+		w->save(w, write_fp);
 		fclose(write_fp);
 	}
 }
@@ -148,24 +146,8 @@ void game_alloc_n_load(struct game_config *gc, struct world **w)
 		 * to allow overwrite of params in next run after -l
 		 */
 		fseek(load_fp, sizeof(struct game_config), SEEK_CUR);
-		*w = malloc(sizeof(struct world));
-		fread(*w, sizeof(struct world), 1, load_fp);
-		assert((*w)->rows == gc->rows && (*w)->cols == gc->cols);
-		(*w)->matrix = (unsigned char *) (malloc((*w)->rows * (*w)->cols * sizeof(unsigned char)));
-		fread((*w)->matrix, sizeof(unsigned char), (size_t)((*w)->cols * (*w)->rows), load_fp);
+		*w = world_alloc(gc->rows, gc->cols);
+		(*w)->load(*w, load_fp);
 		fclose(load_fp);
-
-		INIT_LIST_HEAD(&(*w)->alive_list);
-		(*w)->alive_cells_count = 0;
-		for (int i = 0; i < (*w)->rows; i++) {
-			for (int j = 0; j < (*w)->cols; j++) {
-				if (_O_((*w), i, j) == ALIVE) {
-					struct list_element *le = list_element_new(i, j);
-
-					list_add(&le->list, &(*w)->alive_list);
-					(*w)->alive_cells_count++;
-				}
-			}
-		}
 	}
 }

@@ -10,11 +10,63 @@
 #include "list.h"
 #include "world.h"
 
-#define ROWS 8
-#define COLS 16
-#define DEFAULT_DENSITY 22
+/* private definitions */
 
-struct list_element *list_element_new(int i, int j)
+#define ATTR_SET(flags, attr) (flags) |= (1 << (attr))
+#define ATTR_IS_SET(flags, attr) ((flags) & (1 << (attr)))
+
+enum world_flags {
+	WORLD_MATRICES_ALLOCATED,
+};
+
+struct list_element {
+	int i;
+	int j;
+	struct list_head list;
+};
+
+static struct list_element *_list_element_new(int i, int j);
+
+static void _world_init_empty(struct world *this);
+
+static void _world_init_density(struct world *this, int density);
+
+static unsigned char _world_get_cell(const struct world *this, int i, int j);
+
+static void _world_set_cell(struct world *this, int i, int j, unsigned char lifeness);
+
+static unsigned char _world_get_cell_previous(const struct world *this, int i, int j);
+
+static void _world_set_cell_previous(struct world *this, int i, int j, unsigned char lifeness);
+
+static inline int _rrand(int from, int to)
+{
+	return rand() % (to - from) + from;
+}
+
+static unsigned char _next_state_of(const struct world *this, int i, int j);
+
+static void _world_next_gen(struct world *this);
+
+static void _world_print(const struct world *this);
+
+#define _NW(i, j) i - 1, j - 1
+#define _N_(i, j) i - 1, j + 0
+#define _NE(i, j) i - 1, j + 1
+#define _W_(i, j) i + 0, j - 1
+#define _O_(i, j) i + 0, j + 0
+#define _E_(i, j) i + 0, j + 1
+#define _SW(i, j) i + 1, j - 1
+#define _S_(i, j) i + 1, j + 0
+#define _SE(i, j) i + 1, j + 1
+
+static void _world_load(struct world *this, FILE *stream);
+
+static void _world_save(const struct world *this, FILE *stream);
+
+/* private & public implementations */
+
+static struct list_element *_list_element_new(int i, int j)
 {
 	struct list_element *result = malloc(sizeof(struct list_element));
 
@@ -23,44 +75,76 @@ struct list_element *list_element_new(int i, int j)
 	return result;
 }
 
-static void _world_reset(struct world *w);
 
-struct world *world_random(void)
+struct world *world_alloc(int rows, int cols)
 {
-	/*
-	 * I do not simply drop `world_random' function because I want to
-	 * keep the backward compatibility. Instead of that, I'll pass
-	 * with default values for ROWS and COLS.
-	 */
-	return world_random_with_size(ROWS, COLS, DEFAULT_DENSITY);
+	struct world *result = (struct world *) (malloc(sizeof(struct world)));
+
+	result->rows = rows;
+	result->cols = cols;
+	result->current_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
+	result->previous_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
+	result->flags = 0;
+	result->flags |= (1 << WORLD_MATRICES_ALLOCATED);
+	INIT_LIST_HEAD(&result->alive_list);
+	result->alive_cells_count = 0;
+	result->generation =  0;
+
+	result->init_empty = _world_init_empty;
+	result->init_with_density = _world_init_density;
+	result->next_gen = _world_next_gen;
+	result->print = _world_print;
+	result->get_cell = _world_get_cell;
+	result->set_cell = _world_set_cell;
+	result->get_cell_previous = _world_get_cell_previous;
+	result->set_cell_previous = _world_set_cell_previous;
+	result->load = _world_load;
+	result->save = _world_save;
+
+	return result;
 }
 
-static inline int rrand(int from, int to)
+
+static void _world_init_empty(struct world *this)
 {
-	return rand() % (to - from + 1) + from;
+	assert(ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED));
+
+	memset(this->previous_matrix, DEAD, this->rows * this->cols);
+	memset(this->current_matrix, DEAD, this->rows * this->cols);
+
+	struct list_element *it, *_t;
+
+	list_for_each_entry_safe(it, _t, &this->alive_list, list) {
+		list_del(&it->list);
+		free(it);
+	}
+
+	INIT_LIST_HEAD(&this->alive_list);
+	this->alive_cells_count = 0;
+	this->generation = 0;
 }
 
-struct world *world_random_with_size(int rows, int cols, int density)
+
+static void _world_init_density(struct world *this, int density)
 {
 	assert(density <= 100);
-	struct world *result = world_alloc(rows, cols);
+	this->init_empty(this);
 
-	_world_reset(result);
-	int to_be_alive = rows * cols * density / 100;
+	int to_be_alive = this->rows * this->cols * density / 100;
 	int collisions = 0;
 
 	srand((unsigned int) time(0));
 
-	while (result->alive_cells_count < to_be_alive) {
-		int i = rrand(0, rows);
-		int j = rrand(0, cols);
+	while (this->alive_cells_count < to_be_alive) {
+		int i = _rrand(0, this->rows);
+		int j = _rrand(0, this->cols);
 
-		if (_O_(result, i, j) == DEAD) {
-			_O_(result, i, j) = ALIVE;
-			struct list_element *le = list_element_new(i, j);
+		if (this->get_cell(this, i, j) == DEAD) {
+			this->set_cell(this, i, j, ALIVE);
+			struct list_element *le = _list_element_new(i, j);
 
-			list_add(&le->list, &result->alive_list);
-			result->alive_cells_count++;
+			list_add(&le->list, &this->alive_list);
+			this->alive_cells_count++;
 			collisions = 0;
 		} else {
 			if (collisions++ >= 3)
@@ -68,93 +152,148 @@ struct world *world_random_with_size(int rows, int cols, int density)
 		}
 	}
 
-	result->generation = 1;
-	return result;
+	this->generation = 1;
 }
 
-static enum lifeness _next_state_of(const struct world *before, int i, int j)
+
+static unsigned char _world_get_cell(const struct world *this, int i, int j)
+{
+	if (i < 0)
+		i = 0;
+	if (i >= this->rows)
+		i = this->rows - 1;
+	if (j < 0)
+		j = 0;
+	if (j >= this->cols)
+		j = this->cols - 1;
+	return this->current_matrix[this->cols * i + j];
+}
+
+
+static void _world_set_cell(struct world *this, int i, int j, unsigned char lifeness)
+{
+	if (i < 0)
+		i = 0;
+	if (i >= this->rows)
+		i = this->rows - 1;
+	if (j < 0)
+		j = 0;
+	if (j >= this->cols)
+		j = this->cols - 1;
+	this->current_matrix[this->cols * i + j] = lifeness;
+}
+
+
+static unsigned char _world_get_cell_previous(const struct world *this, int i, int j)
+{
+	if (i < 0)
+		i = 0;
+	if (i >= this->rows)
+		i = this->rows - 1;
+	if (j < 0)
+		j = 0;
+	if (j >= this->cols)
+		j = this->cols - 1;
+	return this->previous_matrix[this->cols * i + j];
+}
+
+
+static void _world_set_cell_previous(struct world *this, int i, int j, unsigned char lifeness)
+{
+	if (i < 0)
+		i = 0;
+	if (i >= this->rows)
+		i = this->rows - 1;
+	if (j < 0)
+		j = 0;
+	if (j >= this->cols)
+		j = this->cols - 1;
+	this->previous_matrix[this->cols * i + j] = lifeness;
+}
+
+
+static unsigned char _next_state_of(const struct world *this, int i, int j)
 {
 	int neighbourhood;
 
-	neighbourhood =
-			_NW(before, i, j) + _N_(before, i, j) + _NE(before, i, j) +
-			_W_(before, i, j) + _E_(before, i, j) +
-			_SW(before, i, j) + _S_(before, i, j) + _SE(before, i, j);
+	neighbourhood = this->get_cell_previous(this, _NW(i, j)) +
+					this->get_cell_previous(this, _N_(i, j)) +
+					this->get_cell_previous(this, _NE(i, j)) +
+					this->get_cell_previous(this, _W_(i, j)) +
+					this->get_cell_previous(this, _O_(i, j)) +
+					this->get_cell_previous(this, _E_(i, j)) +
+					this->get_cell_previous(this, _SW(i, j)) +
+					this->get_cell_previous(this, _S_(i, j)) +
+					this->get_cell_previous(this, _SE(i, j));
 
-	if (_O_(before, i, j) == DEAD && neighbourhood == 3)
+	if (this->get_cell_previous(this, _O_(i, j)) == DEAD && neighbourhood == 3)
 		return ALIVE;
-	else if (_O_(before, i, j) == ALIVE &&
+	else if (this->get_cell_previous(this, _O_(i, j)) == ALIVE &&
 			 (neighbourhood == 2 || neighbourhood == 3))
 		return ALIVE;
 	else
 		return DEAD;
 }
 
-static void _world_reset(struct world *w)
+
+static void _world_next_gen(struct world *this)
 {
-	memset(w->matrix, DEAD, w->rows * w->cols);
+	assert(ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED));
 
-	struct list_element *it, *_t;
+	/* swap matrices */
+	unsigned char *_tp = this->previous_matrix;
 
-	list_for_each_entry_safe(it, _t, &w->alive_list, list) {
-		list_del(&it->list);
-		free(it);
-	}
-
-	INIT_LIST_HEAD(&w->alive_list);
-	w->alive_cells_count = 0;
-	w->generation = 0;
-}
-
-void world_next_gen(struct world *before, struct world *after)
-{
-	assert(before != NULL);
-	assert(after != NULL);
-	assert(before->rows == after->rows && before->cols == after->cols);
-
-	_world_reset(after);
+	this->previous_matrix = this->current_matrix;
+	this->current_matrix = _tp;
+	memset(this->current_matrix, DEAD, this->rows * this->cols);
 
 	struct list_element *it, *_t;
 	struct list_head to_be_checked;
 
 	/* make a list of current alive cells and its 8 neighbours for being later checked */
 	INIT_LIST_HEAD(&to_be_checked);
-	list_for_each_entry_safe(it, _t, &(before->alive_list), list) {
-		if (_NW(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i - 1, it->j - 1)->list, &to_be_checked);
-		if (_N_(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i - 1, it->j + 0)->list, &to_be_checked);
-		if (_NE(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i - 1, it->j + 1)->list, &to_be_checked);
+	int i, j;
 
-		if (_W_(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i + 0, it->j - 1)->list, &to_be_checked);
+	list_for_each_entry_safe(it, _t, &(this->alive_list), list) {
+		i = it->i;
+		j = it->j;
+		if (this->get_cell_previous(this, _NW(i, j)) == DEAD)
+			list_add(&_list_element_new(_NW(i, j))->list, &to_be_checked);
+		if (this->get_cell_previous(this, _N_(i, j)) == DEAD)
+			list_add(&_list_element_new(_N_(i, j))->list, &to_be_checked);
+		if (this->get_cell_previous(this, _NE(i, j)) == DEAD)
+			list_add(&_list_element_new(_NE(i, j))->list, &to_be_checked);
+
+		if (this->get_cell_previous(this, _W_(i, j)) == DEAD)
+			list_add(&_list_element_new(_W_(i, j))->list, &to_be_checked);
 		list_move(&it->list, &to_be_checked);
-		before->alive_cells_count--;
-		if (_E_(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i + 0, it->j + 1)->list, &to_be_checked);
+		this->alive_cells_count--;
+		if (this->get_cell_previous(this, _E_(i, j)) == DEAD)
+			list_add(&_list_element_new(_E_(i, j))->list, &to_be_checked);
 
-		if (_SW(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i + 1, it->j - 1)->list, &to_be_checked);
-		if (_S_(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i + 1, it->j + 0)->list, &to_be_checked);
-		if (_SE(before, it->i, it->j) == DEAD)
-			list_add(&list_element_new(it->i + 1, it->j + 1)->list, &to_be_checked);
+		if (this->get_cell_previous(this, _SW(i, j)) == DEAD)
+			list_add(&_list_element_new(_SW(i, j))->list, &to_be_checked);
+		if (this->get_cell_previous(this, _S_(i, j)) == DEAD)
+			list_add(&_list_element_new(_S_(i, j))->list, &to_be_checked);
+		if (this->get_cell_previous(this, _SE(i, j)) == DEAD)
+			list_add(&_list_element_new(_SE(i, j))->list, &to_be_checked);
 	}
 
 	/* alive_list should be empty now */
-	assert(list_empty(&before->alive_list));
-	assert(before->alive_cells_count == 0);
+	assert(list_empty(&this->alive_list));
+	assert(this->alive_cells_count == 0);
 
 	/* check cells that may have changed their state */
-	list_for_each_entry_safe(it, _t, &(to_be_checked), list) {
-		enum lifeness next_state;
+	unsigned char next_state;
 
-		next_state = _next_state_of(before, it->i, it->j);
-		if (next_state == ALIVE && _O_(after, it->i, it->j) == DEAD) {
-			_O_(after, it->i, it->j) = ALIVE;
-			list_move(&it->list, &after->alive_list);
-			after->alive_cells_count++;
+	list_for_each_entry_safe(it, _t, &(to_be_checked), list) {
+		i = it->i;
+		j = it->j;
+		next_state = _next_state_of(this, i, j);
+		if (next_state == ALIVE && this->get_cell(this, _O_(i, j)) == DEAD) {
+			this->set_cell(this, i, j, ALIVE);
+			list_move(&it->list, &this->alive_list);
+			this->alive_cells_count++;
 		} else {
 			list_del(&it->list);
 			free(it);
@@ -163,39 +302,43 @@ void world_next_gen(struct world *before, struct world *after)
 
 	/* list to_be_checked must be empty now */
 	assert(list_empty(&to_be_checked));
-	after->generation = before->generation + 1;
+	this->generation++;
 }
+
 
 void world_free(struct world *w)
 {
-	if (w != NULL)
-		free(w->matrix);
+	if (w != NULL) {
+		if (ATTR_IS_SET(w->flags, WORLD_MATRICES_ALLOCATED)) {
+			free(w->previous_matrix);
+			free(w->current_matrix);
+		}
 
-	struct list_element *it, *_t;
+		struct list_element *it, *_t;
 
-	list_for_each_entry_safe(it, _t, &w->alive_list, list) {
-		list_del(&it->list);
-		free(it);
+		list_for_each_entry_safe(it, _t, &w->alive_list, list) {
+			list_del(&it->list);
+			free(it);
+		}
 	}
 
 	free(w);
 }
 
-void world_print(const struct world *w)
-{
-	assert(w != NULL);
 
-	int z = w->cols;
+static void _world_print(const struct world *this)
+{
+	int z = this->cols;
 
 	printf("/");
 	while (z--)
 		printf("-");
 	printf("\\\n");
 
-	for (int i = 0; i < w->rows; i++) {
+	for (int i = 0; i < this->rows; i++) {
 		printf("|");
-		for (int j = 0; j < w->cols; j++) {
-			if (_O_(w, i, j) == ALIVE)
+		for (int j = 0; j < this->cols; j++) {
+			if (this->get_cell(this, i, j) == ALIVE)
 				printf("o");
 			else
 				printf(" ");
@@ -203,42 +346,45 @@ void world_print(const struct world *w)
 		printf("|\n");
 	}
 
-	z = w->cols;
+	z = this->cols;
 	printf("\\");
 	while (z--)
 		printf("-");
 	printf("/\n");
-	printf("Alive cells count: %5d  (%5.2f%%)\n", w->alive_cells_count,
-		   (float) w->alive_cells_count / (w->cols * w->rows) * 100);
+	printf("Alive cells count: %5d  (%5.2f%%)\n", this->alive_cells_count,
+		   (float) this->alive_cells_count / (this->cols * this->rows) * 100);
 }
 
-void world_copy(struct world *dest, const struct world *src)
+static void _world_load(struct world *this, FILE *stream)
 {
-	assert(dest != NULL);
-	assert(src != NULL);
-	assert(dest->rows == src->rows && dest->cols == src->cols);
+	struct world read;
 
-	memcpy(dest->matrix, src->matrix, (dest->rows * dest->cols * sizeof(unsigned char)));
+	assert(ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED));
+	fread(&read, sizeof(struct world), 1, stream);
+	assert(this->rows == read.rows && this->cols == read.cols);
+	this->generation = read.generation;
+	fread(this->previous_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream);
+	fread(this->current_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream);
+
+	INIT_LIST_HEAD(&this->alive_list);
+	this->alive_cells_count = 0;
+	for (int i = 0; i < this->rows; i++) {
+		for (int j = 0; j < this->cols; j++) {
+			if (this->get_cell(this, _O_(i, j)) == ALIVE) {
+				struct list_element *le = _list_element_new(i, j);
+
+				list_add(&le->list, &this->alive_list);
+				this->alive_cells_count++;
+			}
+		}
+	}
 }
 
-struct world *world_alloc(int rows, int cols)
+static void _world_save(const struct world *this, FILE *stream)
 {
-	struct world *result = (struct world *) (malloc(sizeof(struct world)));
-
-	result->rows = rows;
-	result->cols = cols;
-	result->matrix = (unsigned char *) (malloc(rows * cols * sizeof(unsigned char)));
-	INIT_LIST_HEAD(&result->alive_list);
-	result->alive_cells_count = 0;
-	result->generation =  0;
-
-	return result;
-}
-
-struct world *world_dup(const struct world *w)
-{
-	struct world *result = world_alloc(w->rows, w->cols);
-
-	world_copy(result, w);
-	return result;
+	fwrite(this, sizeof(struct world), 1, stream);
+	if (ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED)) {
+		fwrite(this->previous_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream);
+		fwrite(this->current_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream);
+	}
 }
