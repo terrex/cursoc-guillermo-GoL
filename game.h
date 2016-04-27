@@ -25,7 +25,7 @@ struct game_config {
 
 void game_config_defaults(struct game_config *gc);
 
-void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc);
+void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc, int loops);
 
 void game_log_start(struct game_config *gc);
 

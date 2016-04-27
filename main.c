@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	struct game_config gc;
 
 	game_config_defaults(&gc);
-	game_parse_command_line_options(argc, argv, &gc);
+	game_parse_command_line_options(argc, argv, &gc, 0);
 
 	/* ===== Run program ===== */
 

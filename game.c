@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include "world_toroidal.h"
 #include "world_normal.h"
 #include "game.h"
@@ -27,7 +28,7 @@ void game_config_defaults(struct game_config *gc)
 	gc->game_type = TYPE_NORMAL;
 }
 
-void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc)
+void game_parse_command_line_options(int argc, char *argv[], struct game_config *gc, int loops)
 {
 	int option_index = 0;
 	int c;
@@ -38,6 +39,11 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 	char buf[256];
 	int oldoptind;
 	FILE *load_fp;
+
+	if (++loops >= 20) {
+		fprintf(stderr, "game_parse_command_line_options(): stop processing arguments, maximum loops reached.\n");
+		return;
+	}
 
 	strncpy(newargv_v[0], argv[0], 256);
 	newargv_p[0] = newargv_v[0];
@@ -106,7 +112,7 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 			fclose(fconfig);
 			oldoptind = optind;
 			optind = 0;
-			game_parse_command_line_options(newargc, newargv_p, gc);
+			game_parse_command_line_options(newargc, newargv_p, gc, loops);
 			optind = oldoptind;
 			break;
 		}
