@@ -2,7 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <openssl/rand.h>
+#include <time.h>
+
 #ifndef typeof
 #define typeof __typeof__
 #endif /* typeof */
@@ -13,13 +14,7 @@
 #define COLS 16
 #define DEFAULT_DENSITY 22
 
-struct list_element {
-	int i;
-	int j;
-	struct list_head list;
-};
-
-static inline struct list_element *list_element_new(int i, int j)
+struct list_element *list_element_new(int i, int j)
 {
 	struct list_element *result = malloc(sizeof(struct list_element));
 
@@ -28,28 +23,7 @@ static inline struct list_element *list_element_new(int i, int j)
 	return result;
 }
 
-struct world {
-	int rows;
-	int cols;
-	unsigned char *matrix;
-	struct list_head alive_list;
-	int alive_cells_count;
-};
-
-#define _NW(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
-#define _N_(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 0 + (w->cols)) % (w->cols))])
-#define _NE(w, i, j) ((w)->matrix[((((i) - 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 1 + (w->cols)) % (w->cols))])
-#define _W_(w, i, j) ((w)->matrix[((((i) + 0 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
-#define _O_(w, i, j) ((w)->matrix[((((i) + 0 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 0 + (w->cols)) % (w->cols))])
-#define _E_(w, i, j) ((w)->matrix[((((i) + 0 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 1 + (w->cols)) % (w->cols))])
-#define _SW(w, i, j) ((w)->matrix[((((i) + 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) - 1 + (w->cols)) % (w->cols))])
-#define _S_(w, i, j) ((w)->matrix[((((i) + 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 0 + (w->cols)) % (w->cols))])
-#define _SE(w, i, j) ((w)->matrix[((((i) + 1 + (w->rows)) % (w->rows)) * (w->cols)) + (((j) + 1 + (w->cols)) % (w->cols))])
-
-enum lifeness {
-	DEAD = 0,
-	ALIVE = 1,
-};
+static void _world_reset(struct world *w);
 
 struct world *world_random(void)
 {
@@ -61,29 +35,40 @@ struct world *world_random(void)
 	return world_random_with_size(ROWS, COLS, DEFAULT_DENSITY);
 }
 
+static inline int rrand(int from, int to)
+{
+	return rand() % (to - from + 1) + from;
+}
+
 struct world *world_random_with_size(int rows, int cols, int density)
 {
 	assert(density <= 100);
 	struct world *result = world_alloc(rows, cols);
 
-	RAND_pseudo_bytes(result->matrix, rows * cols);
+	_world_reset(result);
+	int to_be_alive = rows * cols * density / 100;
+	int collisions = 0;
 
-	/* there will be a density percent of ALIVE cells on world */
-	unsigned char threshold = (unsigned char) ((float) density / 100.0 * 255.0);
+	srand((unsigned int) time(0));
 
-	for (int i = 0; i < rows; i++)
-		for (int j = 0; j < cols; j++) {
-			enum lifeness ln = (enum lifeness) (_O_(result, i, j) < threshold);
+	while (result->alive_cells_count < to_be_alive) {
+		int i = rrand(0, rows);
+		int j = rrand(0, cols);
 
-			_O_(result, i, j) = ln;
-			if (ln == ALIVE) {
-				struct list_element *le = list_element_new(i, j);
+		if (_O_(result, i, j) == DEAD) {
+			_O_(result, i, j) = ALIVE;
+			struct list_element *le = list_element_new(i, j);
 
-				list_add(&le->list, &result->alive_list);
-				result->alive_cells_count++;
-			}
+			list_add(&le->list, &result->alive_list);
+			result->alive_cells_count++;
+			collisions = 0;
+		} else {
+			if (collisions++ >= 3)
+				to_be_alive--;
 		}
+	}
 
+	result->generation = 1;
 	return result;
 }
 
@@ -118,6 +103,7 @@ static void _world_reset(struct world *w)
 
 	INIT_LIST_HEAD(&w->alive_list);
 	w->alive_cells_count = 0;
+	w->generation = 0;
 }
 
 void world_next_gen(struct world *before, struct world *after)
@@ -177,6 +163,7 @@ void world_next_gen(struct world *before, struct world *after)
 
 	/* list to_be_checked must be empty now */
 	assert(list_empty(&to_be_checked));
+	after->generation = before->generation + 1;
 }
 
 void world_free(struct world *w)
@@ -243,6 +230,7 @@ struct world *world_alloc(int rows, int cols)
 	result->matrix = (unsigned char *) (malloc(rows * cols * sizeof(unsigned char)));
 	INIT_LIST_HEAD(&result->alive_list);
 	result->alive_cells_count = 0;
+	result->generation =  0;
 
 	return result;
 }
