@@ -33,7 +33,7 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 	int option_index = 0;
 	int c;
 	FILE *fconfig;
-	int newargc = 1;
+	int newargc;
 	char *newargv_p[30];
 	char newargv_v[30][256];
 	char buf[256];
@@ -44,10 +44,6 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 		fprintf(stderr, "game_parse_command_line_options(): stop processing arguments, maximum loops reached.\n");
 		return;
 	}
-
-	strncpy(newargv_v[0], argv[0], 256);
-	newargv_p[0] = newargv_v[0];
-	newargv_p[1] = NULL;
 
 	static struct option long_options[] = {
 		{"rows", required_argument, 0, 'r'},
@@ -109,13 +105,25 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 				break;
 			}
 			strncpy(gc->file_config, optarg, 256);
-			while (!feof(fconfig) && fscanf(fconfig, "%256s", buf)) {
+
+			/* reset here next-call args to allow several -f in a row */
+			newargc = 1;
+			strncpy(newargv_v[0], argv[0], 256);
+			newargv_p[0] = newargv_v[0];
+			newargv_p[1] = NULL;
+
+			while (!feof(fconfig) && (fscanf(fconfig, "%256s", buf)) == 1) {
 				if (strlen(buf) > 0) {
 					strncpy(newargv_v[newargc], buf, 256);
 					newargv_p[newargc] = newargv_v[newargc];
 					newargv_p[newargc + 1] = NULL;
 					newargc++;
 				}
+			}
+			if (ferror(fconfig)) {
+				perror("error reading fconfig (-f)");
+				fclose(fconfig);
+				break;
 			}
 			fclose(fconfig);
 			oldoptind = optind;
