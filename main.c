@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include "world_normal.h"
 #include "world_toroidal.h"
 #include "game.h"
@@ -50,5 +51,5 @@ int main(int argc, char *argv[])
 	else if (gc.game_type == TYPE_TOROIDAL)
 		world_toroidal_free((struct world_toroidal *) w);
 
-	return 0;
+	return EXIT_SUCCESS;
 }

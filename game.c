@@ -94,13 +94,21 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 			break;
 		case 'l':
 			load_fp = fopen(optarg, "r");
+			if (load_fp == NULL) {
+				perror("failed to open file specified by -l option");
+				break;
+			}
 			fread(gc, sizeof(struct game_config), 1, load_fp);
 			fclose(load_fp);
 			strncpy(gc->load_world, optarg, 256);
 			break;
 		case 'f':
-			strncpy(gc->file_config, optarg, 256);
 			fconfig = fopen(optarg, "r");
+			if (fconfig == NULL) {
+				perror("failed to open file specified by -f option");
+				break;
+			}
+			strncpy(gc->file_config, optarg, 256);
 			while (!feof(fconfig) && fscanf(fconfig, "%256s", buf)) {
 				if (strlen(buf) > 0) {
 					strncpy(newargv_v[newargc], buf, 256);
@@ -121,52 +129,76 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 
 void game_log_start(struct game_config *gc)
 {
-	if (gc->output[0] != '\0')
-		gc->output_fp = fopen(gc->output, "w+");
+	if (gc->output[0] == '\0')
+		return;
+
+	gc->output_fp = fopen(gc->output, "w+");
+
+	if (gc->output_fp == NULL)
+		perror("failed to open file for writing stats");
 }
 
 void game_log_output(const struct game_config *gc, const struct world *w)
 {
-	if (gc->output_fp != NULL)
-		fprintf(gc->output_fp, "%d\t%d\n", w->generation, w->alive_cells_count);
+	if (gc->output_fp == NULL)
+		return;
+
+	fprintf(gc->output_fp, "%d\t%d\n", w->generation, w->alive_cells_count);
 }
 
 void game_log_stop(struct game_config *gc)
 {
-	if (gc->output_fp != NULL) {
-		fclose(gc->output_fp);
-		gc->output_fp = NULL;
-	}
+	if (gc->output_fp == NULL)
+		return;
+
+	fclose(gc->output_fp);
+	gc->output_fp = NULL;
 }
 
 void game_write(struct game_config *gc, const struct world *w)
 {
 	FILE *write_fp;
 
-	if (gc->write_world[0] != '\0') {
-		write_fp = fopen(gc->write_world, "w+");
-		fwrite(gc, sizeof(struct game_config), 1, write_fp);
-		w->save(w, write_fp);
-		fclose(write_fp);
+	if (gc->write_world[0] == '\0')
+		return;
+
+	write_fp = fopen(gc->write_world, "w+");
+	if (write_fp == NULL) {
+		perror("failed to open file for dump game");
+		return;
 	}
+
+	fwrite(gc, sizeof(struct game_config), 1, write_fp);
+	w->save(w, write_fp);
+	fclose(write_fp);
 }
 
 void game_alloc_n_load(struct game_config *gc, struct world **w)
 {
 	FILE *load_fp;
 
-	if (gc->load_world[0] != '\0') {
-		load_fp = fopen(gc->load_world, "r");
-		/*
-		 * load config in opt parsing time, not now,
-		 * to allow overwrite of params in next run after -l
-		 */
-		fseek(load_fp, sizeof(struct game_config), SEEK_CUR);
+	if (gc->load_world[0] == '\0')
+		return;
+
+	load_fp = fopen(gc->load_world, "r");
+	if (load_fp == NULL) {
+		perror("failed to open file for loading game from dump");
 		if (gc->game_type == TYPE_NORMAL)
 			*w = (struct world *)world_normal_alloc(gc->rows, gc->cols);
 		else if (gc->game_type == TYPE_TOROIDAL)
 			*w = (struct world *)world_toroidal_alloc(gc->rows, gc->cols);
-		(*w)->load(*w, load_fp);
-		fclose(load_fp);
+		return;
 	}
+
+	/*
+	 * load config in opt parsing time, not now,
+	 * to allow overwrite of params in next run after -l
+	 */
+	fseek(load_fp, sizeof(struct game_config), SEEK_CUR);
+	if (gc->game_type == TYPE_NORMAL)
+		*w = (struct world *)world_normal_alloc(gc->rows, gc->cols);
+	else if (gc->game_type == TYPE_TOROIDAL)
+		*w = (struct world *)world_toroidal_alloc(gc->rows, gc->cols);
+	(*w)->load(*w, load_fp);
+	fclose(load_fp);
 }
