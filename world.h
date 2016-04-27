@@ -10,15 +10,17 @@ enum lifeness {
     ALIVE = 1,
 };
 
+struct world_private;
+
 struct world {
-    int rows;
-    int cols;
-    unsigned char *previous_matrix;
-    unsigned char *current_matrix;
-    struct list_head alive_list;
-    int alive_cells_count;
-    int generation;
-    uint32_t flags;
+    struct world_private *world_pr;
+
+    int (*get_rows)(const struct world *this);
+    int (*get_cols)(const struct world *this);
+    int (*get_alive_cells_count)(const struct world *this);
+    int (*get_generation)(const struct world *this);
+    unsigned char *(*get_current_matrix)(const struct world *this);
+    unsigned char *(*get_previous_matrix)(const struct world *this);
 
     void (*init_empty)(struct world *this);
     void (*init_with_density)(struct world *this, int density);

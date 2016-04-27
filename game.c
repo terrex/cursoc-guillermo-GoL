@@ -155,7 +155,7 @@ void game_log_output(const struct game_config *gc, const struct world *w)
 	if (gc->output_fp == NULL)
 		return;
 
-	fprintf(gc->output_fp, "%d\t%d\n", w->generation, w->alive_cells_count);
+	fprintf(gc->output_fp, "%d\t%d\n", w->get_generation(w), w->get_alive_cells_count(w));
 }
 
 void game_log_stop(struct game_config *gc)

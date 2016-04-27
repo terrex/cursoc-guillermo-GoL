@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 		game_alloc_n_load(&gc, &w);
 
 	game_log_start(&gc);
-	printf(RESET_SCREEN "World #%d:\n", w->generation);
+	printf(RESET_SCREEN "World #%d:\n", w->get_generation(w));
 	w->print(w);
 	game_log_output(&gc, w);
 	sleep(1);
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 
 	do {
 		w->next_gen(w);
-		printf(RESET_SCREEN "World #%d:\n", w->generation);
+		printf(RESET_SCREEN "World #%d:\n", w->get_generation(w));
 		w->print(w);
 		usleep(gc.speed);
 		game_log_output(&gc, w);

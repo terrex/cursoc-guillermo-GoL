@@ -12,6 +12,17 @@
 
 /* private definitions */
 
+struct world_private {
+	int rows;
+	int cols;
+	unsigned char *previous_matrix;
+	unsigned char *current_matrix;
+	struct list_head alive_list;
+	int alive_cells_count;
+	int generation;
+	uint32_t flags;
+};
+
 #define ATTR_SET(flags, attr) (flags) |= (1 << (attr))
 #define ATTR_IS_SET(flags, attr) ((flags) & (1 << (attr)))
 
@@ -56,6 +67,13 @@ static void _world_load(struct world *this, FILE *stream);
 
 static void _world_save(const struct world *this, FILE *stream);
 
+static int _world_get_rows(const struct world *this);
+static int _world_get_cols(const struct world *this);
+static int _world_get_alive_cells_count(const struct world *this);
+static int _world_get_generation(const struct world *this);
+static unsigned char *_world_get_current_matrix(const struct world *this);
+static unsigned char *_world_get_previous_matrix(const struct world *this);
+
 /* private & public implementations */
 
 static struct list_element *_list_element_new(int i, int j)
@@ -79,15 +97,23 @@ struct world *world_alloc(int rows, int cols)
 
 void world_init(struct world *this, int rows, int cols)
 {
-	this->rows = rows;
-	this->cols = cols;
-	this->current_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
-	this->previous_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
-	this->flags = 0;
-	this->flags |= (1 << WORLD_MATRICES_ALLOCATED);
-	INIT_LIST_HEAD(&this->alive_list);
-	this->alive_cells_count = 0;
-	this->generation =  0;
+	this->world_pr = (struct world_private *) (malloc(sizeof(struct world_private)));
+	this->world_pr->rows = rows;
+	this->world_pr->cols = cols;
+	this->world_pr->current_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
+	this->world_pr->previous_matrix = (unsigned char *) (calloc((size_t) rows * cols, sizeof(unsigned char)));
+	this->world_pr->flags = 0;
+	this->world_pr->flags |= (1 << WORLD_MATRICES_ALLOCATED);
+	INIT_LIST_HEAD(&this->world_pr->alive_list);
+	this->world_pr->alive_cells_count = 0;
+	this->world_pr->generation =  0;
+
+	this->get_rows = _world_get_rows;
+	this->get_cols = _world_get_cols;
+	this->get_alive_cells_count = _world_get_alive_cells_count;
+	this->get_generation = _world_get_generation;
+	this->get_current_matrix = _world_get_current_matrix;
+	this->get_previous_matrix = _world_get_previous_matrix;
 
 	this->init_empty = _world_init_empty;
 	this->init_with_density = _world_init_density;
@@ -104,21 +130,21 @@ void world_init(struct world *this, int rows, int cols)
 
 static void _world_init_empty(struct world *this)
 {
-	assert(ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED));
+	assert(ATTR_IS_SET(this->world_pr->flags, WORLD_MATRICES_ALLOCATED));
 
-	memset(this->previous_matrix, DEAD, this->rows * this->cols);
-	memset(this->current_matrix, DEAD, this->rows * this->cols);
+	memset(this->world_pr->previous_matrix, DEAD, this->world_pr->rows * this->world_pr->cols);
+	memset(this->world_pr->current_matrix, DEAD, this->world_pr->rows * this->world_pr->cols);
 
 	struct list_element *it, *_t;
 
-	list_for_each_entry_safe(it, _t, &this->alive_list, list) {
+	list_for_each_entry_safe(it, _t, &this->world_pr->alive_list, list) {
 		list_del(&it->list);
 		free(it);
 	}
 
-	INIT_LIST_HEAD(&this->alive_list);
-	this->alive_cells_count = 0;
-	this->generation = 0;
+	INIT_LIST_HEAD(&this->world_pr->alive_list);
+	this->world_pr->alive_cells_count = 0;
+	this->world_pr->generation = 0;
 }
 
 
@@ -127,21 +153,21 @@ static void _world_init_density(struct world *this, int density)
 	assert(density <= 100);
 	this->init_empty(this);
 
-	int to_be_alive = this->rows * this->cols * density / 100;
+	int to_be_alive = this->world_pr->rows * this->world_pr->cols * density / 100;
 	int collisions = 0;
 
 	srand((unsigned int) time(0));
 
-	while (this->alive_cells_count < to_be_alive) {
-		int i = _rrand(0, this->rows);
-		int j = _rrand(0, this->cols);
+	while (this->world_pr->alive_cells_count < to_be_alive) {
+		int i = _rrand(0, this->world_pr->rows);
+		int j = _rrand(0, this->world_pr->cols);
 
 		if (this->get_cell(this, i, j) == DEAD) {
 			this->set_cell(this, i, j, ALIVE);
 			struct list_element *le = _list_element_new(i, j);
 
-			list_add(&le->list, &this->alive_list);
-			this->alive_cells_count++;
+			list_add(&le->list, &this->world_pr->alive_list);
+			this->world_pr->alive_cells_count++;
 			collisions = 0;
 		} else {
 			if (collisions++ >= 3)
@@ -149,7 +175,7 @@ static void _world_init_density(struct world *this, int density)
 		}
 	}
 
-	this->generation = 1;
+	this->world_pr->generation = 1;
 }
 
 
@@ -179,14 +205,14 @@ static unsigned char _next_state_of(const struct world *this, int i, int j)
 
 static void _world_next_gen(struct world *this)
 {
-	assert(ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED));
+	assert(ATTR_IS_SET(this->world_pr->flags, WORLD_MATRICES_ALLOCATED));
 
 	/* swap matrices */
-	unsigned char *_tp = this->previous_matrix;
+	unsigned char *_tp = this->world_pr->previous_matrix;
 
-	this->previous_matrix = this->current_matrix;
-	this->current_matrix = _tp;
-	memset(this->current_matrix, DEAD, this->rows * this->cols);
+	this->world_pr->previous_matrix = this->world_pr->current_matrix;
+	this->world_pr->current_matrix = _tp;
+	memset(this->world_pr->current_matrix, DEAD, this->world_pr->rows * this->world_pr->cols);
 
 	struct list_element *it, *_t;
 	struct list_head to_be_checked;
@@ -195,7 +221,7 @@ static void _world_next_gen(struct world *this)
 	INIT_LIST_HEAD(&to_be_checked);
 	int i, j;
 
-	list_for_each_entry_safe(it, _t, &(this->alive_list), list) {
+	list_for_each_entry_safe(it, _t, &(this->world_pr->alive_list), list) {
 		i = it->i;
 		j = it->j;
 		if (this->get_cell_previous(this, _NW(i, j)) == DEAD)
@@ -208,7 +234,7 @@ static void _world_next_gen(struct world *this)
 		if (this->get_cell_previous(this, _W_(i, j)) == DEAD)
 			list_add(&_list_element_new(_W_(i, j))->list, &to_be_checked);
 		list_move(&it->list, &to_be_checked);
-		this->alive_cells_count--;
+		this->world_pr->alive_cells_count--;
 		if (this->get_cell_previous(this, _E_(i, j)) == DEAD)
 			list_add(&_list_element_new(_E_(i, j))->list, &to_be_checked);
 
@@ -221,8 +247,8 @@ static void _world_next_gen(struct world *this)
 	}
 
 	/* alive_list should be empty now */
-	assert(list_empty(&this->alive_list));
-	assert(this->alive_cells_count == 0);
+	assert(list_empty(&this->world_pr->alive_list));
+	assert(this->world_pr->alive_cells_count == 0);
 
 	/* check cells that may have changed their state */
 	unsigned char next_state;
@@ -233,8 +259,8 @@ static void _world_next_gen(struct world *this)
 		next_state = _next_state_of(this, i, j);
 		if (next_state == ALIVE && this->get_cell(this, _O_(i, j)) == DEAD) {
 			this->set_cell(this, i, j, ALIVE);
-			list_move(&it->list, &this->alive_list);
-			this->alive_cells_count++;
+			list_move(&it->list, &this->world_pr->alive_list);
+			this->world_pr->alive_cells_count++;
 		} else {
 			list_del(&it->list);
 			free(it);
@@ -243,24 +269,26 @@ static void _world_next_gen(struct world *this)
 
 	/* list to_be_checked must be empty now */
 	assert(list_empty(&to_be_checked));
-	this->generation++;
+	this->world_pr->generation++;
 }
 
 
 void world_free(struct world *w)
 {
 	if (w != NULL) {
-		if (ATTR_IS_SET(w->flags, WORLD_MATRICES_ALLOCATED)) {
-			free(w->previous_matrix);
-			free(w->current_matrix);
+		if (ATTR_IS_SET(w->world_pr->flags, WORLD_MATRICES_ALLOCATED)) {
+			free(w->world_pr->previous_matrix);
+			free(w->world_pr->current_matrix);
 		}
 
 		struct list_element *it, *_t;
 
-		list_for_each_entry_safe(it, _t, &w->alive_list, list) {
+		list_for_each_entry_safe(it, _t, &w->world_pr->alive_list, list) {
 			list_del(&it->list);
 			free(it);
 		}
+
+		free(w->world_pr);
 	}
 
 	free(w);
@@ -269,16 +297,16 @@ void world_free(struct world *w)
 
 static void _world_print(const struct world *this)
 {
-	int z = this->cols;
+	int z = this->world_pr->cols;
 
 	printf("/");
 	while (z--)
 		printf("-");
 	printf("\\\n");
 
-	for (int i = 0; i < this->rows; i++) {
+	for (int i = 0; i < this->world_pr->rows; i++) {
 		printf("|");
-		for (int j = 0; j < this->cols; j++) {
+		for (int j = 0; j < this->world_pr->cols; j++) {
 			if (this->get_cell(this, i, j) == ALIVE)
 				printf("o");
 			else
@@ -287,45 +315,45 @@ static void _world_print(const struct world *this)
 		printf("|\n");
 	}
 
-	z = this->cols;
+	z = this->world_pr->cols;
 	printf("\\");
 	while (z--)
 		printf("-");
 	printf("/\n");
-	printf("Alive cells count: %5d  (%5.2f%%)\n", this->alive_cells_count,
-		   (float) this->alive_cells_count / (this->cols * this->rows) * 100);
+	printf("Alive cells count: %5d  (%5.2f%%)\n", this->world_pr->alive_cells_count,
+		   (float) this->world_pr->alive_cells_count / (this->world_pr->cols * this->world_pr->rows) * 100);
 }
 
 static void _world_load(struct world *this, FILE *stream)
 {
-	struct world read;
+	struct world_private read;
 
-	assert(ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED));
-	if (fread(&read, sizeof(struct world), 1, stream) != 1) {
+	assert(ATTR_IS_SET(this->world_pr->flags, WORLD_MATRICES_ALLOCATED));
+	if (fread(&read, sizeof(struct world_private), 1, stream) != 1) {
 		perror("error loading struct world from file");
 		exit(EXIT_FAILURE);
 	}
-	assert(this->rows == read.rows && this->cols == read.cols);
-	this->generation = read.generation;
-	if (fread(this->previous_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream) != (size_t)(this->cols * this->rows)) {
+	assert(this->world_pr->rows == read.rows && this->world_pr->cols == read.cols);
+	this->world_pr->generation = read.generation;
+	if (fread(this->world_pr->previous_matrix, sizeof(unsigned char), (size_t)(this->world_pr->cols * this->world_pr->rows), stream) != (size_t)(this->world_pr->cols * this->world_pr->rows)) {
 		perror("error loading previous_matrix from file");
 		exit(EXIT_FAILURE);
 	}
 
-	if (fread(this->current_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream) != (size_t)(this->cols * this->rows)) {
+	if (fread(this->world_pr->current_matrix, sizeof(unsigned char), (size_t)(this->world_pr->cols * this->world_pr->rows), stream) != (size_t)(this->world_pr->cols * this->world_pr->rows)) {
 		perror("error loading current_matrix from file");
 		exit(EXIT_FAILURE);
 	}
 
-	INIT_LIST_HEAD(&this->alive_list);
-	this->alive_cells_count = 0;
-	for (int i = 0; i < this->rows; i++) {
-		for (int j = 0; j < this->cols; j++) {
+	INIT_LIST_HEAD(&this->world_pr->alive_list);
+	this->world_pr->alive_cells_count = 0;
+	for (int i = 0; i < this->world_pr->rows; i++) {
+		for (int j = 0; j < this->world_pr->cols; j++) {
 			if (this->get_cell(this, _O_(i, j)) == ALIVE) {
 				struct list_element *le = _list_element_new(i, j);
 
-				list_add(&le->list, &this->alive_list);
-				this->alive_cells_count++;
+				list_add(&le->list, &this->world_pr->alive_list);
+				this->world_pr->alive_cells_count++;
 			}
 		}
 	}
@@ -333,18 +361,45 @@ static void _world_load(struct world *this, FILE *stream)
 
 static void _world_save(const struct world *this, FILE *stream)
 {
-	if (fwrite(this, sizeof(struct world), 1, stream) != 1) {
+	if (fwrite(this->world_pr, sizeof(struct world_private), 1, stream) != 1) {
 		perror("error writing struct world to file");
 		exit(EXIT_FAILURE);
 	}
-	if (ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED)) {
-		if (fwrite(this->previous_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream) != (size_t) (this->cols * this->rows)) {
+	if (ATTR_IS_SET(this->world_pr->flags, WORLD_MATRICES_ALLOCATED)) {
+		if (fwrite(this->world_pr->previous_matrix, sizeof(unsigned char), (size_t) (this->world_pr->cols * this->world_pr->rows), stream) != (size_t) (this->world_pr->cols * this->world_pr->rows)) {
 			perror("error writing previous_matrix to file");
 			exit(EXIT_FAILURE);
 		}
-		if (fwrite(this->current_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream) != (size_t) (this->cols * this->rows)) {
+		if (fwrite(this->world_pr->current_matrix, sizeof(unsigned char), (size_t) (this->world_pr->cols * this->world_pr->rows), stream) != (size_t) (this->world_pr->cols * this->world_pr->rows)) {
 			perror("error writing current_matrix to file");
 			exit(EXIT_FAILURE);
 		}
 	}
+}
+
+static int _world_get_rows(const struct world *this)
+{
+	return this->world_pr->rows;
+}
+
+static int _world_get_cols(const struct world *this)
+{
+	return this->world_pr->cols;
+}
+static int _world_get_alive_cells_count(const struct world *this)
+{
+	return this->world_pr->alive_cells_count;
+}
+static int _world_get_generation(const struct world *this)
+{
+	return this->world_pr->generation;
+}
+static unsigned char *_world_get_current_matrix(const struct world *this)
+{
+	return this->world_pr->current_matrix;
+}
+
+static unsigned char *_world_get_previous_matrix(const struct world *this)
+{
+	return this->world_pr->previous_matrix;
 }
