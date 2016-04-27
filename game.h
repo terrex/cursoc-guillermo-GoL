@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include "world.h"
 
+enum game_type {
+	TYPE_NORMAL,
+	TYPE_TOROIDAL,
+};
+
 struct game_config {
 	int rows;
 	int cols;
@@ -15,6 +20,7 @@ struct game_config {
 	FILE *output_fp;
 	char write_world[256];
 	char load_world[256];
+	enum game_type game_type;
 };
 
 void game_config_defaults(struct game_config *gc);
@@ -27,7 +33,7 @@ void game_log_output(const struct game_config *gc, const struct world *w);
 
 void game_log_stop(struct game_config *gc);
 
-void game_write(const struct game_config *gc, const struct world *w);
+void game_write(struct game_config *gc, const struct world *w);
 
 void game_alloc_n_load(struct game_config *gc, struct world **w);
 

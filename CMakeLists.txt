@@ -3,8 +3,7 @@ project(juego-vida)
 
 add_definitions(-std=c99)
 
-add_executable(juego-vida list.h world.c world.h game.c game.h main.c)
-target_link_libraries(juego-vida)
+add_executable(juego-vida list.h world.c world.h game.c game.h world_normal.c world_normal.h world_toroidal.c world_toroidal.h main.c)
 
 add_custom_target(check
         checkpatch.pl -q --no-tree -f --fix-inplace ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/*.h)
@@ -25,3 +24,15 @@ add_test(NAME save_and_continue1
 
 add_test(NAME save_and_continue2
         COMMAND juego-vida -l juego-vida.dat -g 20 -w juego-vida.dat -o juego-vida.plot)
+
+add_test(NAME save_and_continue1-normal
+        COMMAND juego-vida --normal -r 10 -c 20 -g 15 -w juego-vida-normal.dat)
+
+add_test(NAME save_and_continue2-normal
+        COMMAND juego-vida --normal -l juego-vida-normal.dat -g 20 -w juego-vida-normal.dat -o juego-vida.plot)
+
+add_test(NAME save_and_continue1-toroidal
+        COMMAND juego-vida --toroidal -r 10 -c 20 -g 15 -w juego-vida-toroidal.dat)
+
+add_test(NAME save_and_continue2-toroidal
+        COMMAND juego-vida --toroidal -l juego-vida-toroidal.dat -g 20 -w juego-vida-toroidal.dat -o juego-vida.plot)
