@@ -94,7 +94,11 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 				perror("failed to open file specified by -l option");
 				break;
 			}
-			fread(gc, sizeof(struct game_config), 1, load_fp);
+			if (fread(gc, sizeof(struct game_config), 1, load_fp) != 1) {
+				perror("error loading game_config");
+				/* abort due garbage could have been read. */
+				exit(EXIT_FAILURE);
+			}
 			fclose(load_fp);
 			strncpy(gc->load_world, optarg, 256);
 			break;
@@ -176,7 +180,10 @@ void game_write(struct game_config *gc, const struct world *w)
 		return;
 	}
 
-	fwrite(gc, sizeof(struct game_config), 1, write_fp);
+	if (fwrite(gc, sizeof(struct game_config), 1, write_fp) != 1) {
+		perror("failed to write game_config");
+		exit(EXIT_FAILURE);
+	}
 	w->save(w, write_fp);
 	fclose(write_fp);
 }

@@ -301,11 +301,21 @@ static void _world_load(struct world *this, FILE *stream)
 	struct world read;
 
 	assert(ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED));
-	fread(&read, sizeof(struct world), 1, stream);
+	if (fread(&read, sizeof(struct world), 1, stream) != 1) {
+		perror("error loading struct world from file");
+		exit(EXIT_FAILURE);
+	}
 	assert(this->rows == read.rows && this->cols == read.cols);
 	this->generation = read.generation;
-	fread(this->previous_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream);
-	fread(this->current_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream);
+	if (fread(this->previous_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream) != (size_t)(this->cols * this->rows)) {
+		perror("error loading previous_matrix from file");
+		exit(EXIT_FAILURE);
+	}
+
+	if (fread(this->current_matrix, sizeof(unsigned char), (size_t)(this->cols * this->rows), stream) != (size_t)(this->cols * this->rows)) {
+		perror("error loading current_matrix from file");
+		exit(EXIT_FAILURE);
+	}
 
 	INIT_LIST_HEAD(&this->alive_list);
 	this->alive_cells_count = 0;
@@ -323,9 +333,18 @@ static void _world_load(struct world *this, FILE *stream)
 
 static void _world_save(const struct world *this, FILE *stream)
 {
-	fwrite(this, sizeof(struct world), 1, stream);
+	if (fwrite(this, sizeof(struct world), 1, stream) != 1) {
+		perror("error writing struct world to file");
+		exit(EXIT_FAILURE);
+	}
 	if (ATTR_IS_SET(this->flags, WORLD_MATRICES_ALLOCATED)) {
-		fwrite(this->previous_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream);
-		fwrite(this->current_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream);
+		if (fwrite(this->previous_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream) != (size_t) (this->cols * this->rows)) {
+			perror("error writing previous_matrix to file");
+			exit(EXIT_FAILURE);
+		}
+		if (fwrite(this->current_matrix, sizeof(unsigned char), (size_t) (this->cols * this->rows), stream) != (size_t) (this->cols * this->rows)) {
+			perror("error writing current_matrix to file");
+			exit(EXIT_FAILURE);
+		}
 	}
 }
