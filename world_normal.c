@@ -47,31 +47,31 @@ void world_normal_free(struct world_normal *w)
 
 static unsigned char _world_normal_get_cell(const struct world *this, int i, int j)
 {
-    if (i >= 0 && i < this->rows && j >= 0 && j < this->cols)
-	return this->current_matrix[this->cols * i + j];
+    if (i >= 0 && i < this->get_rows(this) && j >= 0 && j < this->get_cols(this))
+	    return this->get_current_matrix(this)[this->get_cols(this) * i + j];
     else
-	return DEAD;
+	    return DEAD;
 }
 
 
 static void _world_normal_set_cell(struct world *this, int i, int j, unsigned char lifeness)
 {
-    if (i >= 0 && i < this->rows && j >= 0 && j < this->cols)
-	this->current_matrix[this->cols * i + j] = lifeness;
+    if (i >= 0 && i < this->get_rows(this) && j >= 0 && j < this->get_cols(this))
+	    this->get_current_matrix(this)[this->get_cols(this) * i + j] = lifeness;
 }
 
 
 static unsigned char _world_normal_get_cell_previous(const struct world *this, int i, int j)
 {
-    if (i >= 0 && i < this->rows && j >= 0 && j < this->cols)
-	return this->previous_matrix[this->cols * i + j];
+    if (i >= 0 && i < this->get_rows(this) && j >= 0 && j < this->get_cols(this))
+	    return this->get_previous_matrix(this)[this->get_cols(this) * i + j];
     else
-	return DEAD;
+	    return DEAD;
 }
 
 
 static void _world_normal_set_cell_previous(struct world *this, int i, int j, unsigned char lifeness)
 {
-    if (i >= 0 && i < this->rows && j >= 0 && j < this->cols)
-    this->previous_matrix[this->cols * i + j] = lifeness;
+    if (i >= 0 && i < this->get_rows(this) && j >= 0 && j < this->get_cols(this))
+	this->get_previous_matrix(this)[this->get_cols(this) * i + j] = lifeness;
 }

@@ -47,31 +47,31 @@ void world_toroidal_free(struct world_toroidal *w)
 
 static unsigned char _world_toroidal_get_cell(const struct world *this, int i, int j)
 {
-    i = (i % this->rows + this->rows) % this->rows;
-    j = (j % this->cols + this->cols) % this->cols;
-    return this->current_matrix[this->cols * i + j];
+    i = (i % this->get_rows(this) + this->get_rows(this)) % this->get_rows(this);
+    j = (j % this->get_cols(this) + this->get_cols(this)) % this->get_cols(this);
+    return this->get_current_matrix(this)[this->get_cols(this) * i + j];
 }
 
 
 static void _world_toroidal_set_cell(struct world *this, int i, int j, unsigned char lifeness)
 {
-    i = (i % this->rows + this->rows) % this->rows;
-    j = (j % this->cols + this->cols) % this->cols;
-    this->current_matrix[this->cols * i + j] = lifeness;
+    i = (i % this->get_rows(this) + this->get_rows(this)) % this->get_rows(this);
+    j = (j % this->get_cols(this) + this->get_cols(this)) % this->get_cols(this);
+    this->get_current_matrix(this)[this->get_cols(this) * i + j] = lifeness;
 }
 
 
 static unsigned char _world_toroidal_get_cell_previous(const struct world *this, int i, int j)
 {
-    i = (i % this->rows + this->rows) % this->rows;
-    j = (j % this->cols + this->cols) % this->cols;
-    return this->previous_matrix[this->cols * i + j];
+    i = (i % this->get_rows(this) + this->get_rows(this)) % this->get_rows(this);
+    j = (j % this->get_cols(this) + this->get_cols(this)) % this->get_cols(this);
+    return this->get_previous_matrix(this)[this->get_cols(this) * i + j];
 }
 
 
 static void _world_toroidal_set_cell_previous(struct world *this, int i, int j, unsigned char lifeness)
 {
-    i = (i % this->rows + this->rows) % this->rows;
-    j = (j % this->cols + this->cols) % this->cols;
-    this->previous_matrix[this->cols * i + j] = lifeness;
+    i = (i % this->get_rows(this) + this->get_rows(this)) % this->get_rows(this);
+    j = (j % this->get_cols(this) + this->get_cols(this)) % this->get_cols(this);
+    this->get_previous_matrix(this)[this->get_cols(this) * i + j] = lifeness;
 }

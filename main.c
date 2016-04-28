@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include "world_normal.h"
 #include "world_toroidal.h"
 #include "game.h"
@@ -11,7 +12,7 @@ int main(int argc, char *argv[])
 	struct game_config gc;
 
 	game_config_defaults(&gc);
-	game_parse_command_line_options(argc, argv, &gc);
+	game_parse_command_line_options(argc, argv, &gc, 0);
 
 	/* ===== Run program ===== */
 
@@ -27,7 +28,7 @@ int main(int argc, char *argv[])
 		game_alloc_n_load(&gc, &w);
 
 	game_log_start(&gc);
-	printf(RESET_SCREEN "World #%d:\n", w->generation);
+	printf(RESET_SCREEN "World #%d:\n", w->get_generation(w));
 	w->print(w);
 	game_log_output(&gc, w);
 	sleep(1);
@@ -36,7 +37,7 @@ int main(int argc, char *argv[])
 
 	do {
 		w->next_gen(w);
-		printf(RESET_SCREEN "World #%d:\n", w->generation);
+		printf(RESET_SCREEN "World #%d:\n", w->get_generation(w));
 		w->print(w);
 		usleep(gc.speed);
 		game_log_output(&gc, w);
@@ -50,5 +51,5 @@ int main(int argc, char *argv[])
 	else if (gc.game_type == TYPE_TOROIDAL)
 		world_toroidal_free((struct world_toroidal *) w);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
