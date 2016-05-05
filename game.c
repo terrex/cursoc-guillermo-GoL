@@ -11,7 +11,7 @@
 #define DEFAULT_COLS 32
 #define DEFAULT_DENSITY 22
 #define DEFAULT_GENERATIONS 100
-#define DEFAULT_SPEED 100000
+#define DEFAULT_SPEED 0.1
 
 void game_config_defaults(struct game_config *gc)
 {
@@ -80,7 +80,7 @@ void game_parse_command_line_options(int argc, char *argv[], struct game_config 
 			gc->generations = (int) strtol(optarg, NULL, 0);
 			break;
 		case 's':
-			gc->speed = (int) strtol(optarg, NULL, 0);
+			gc->speed = strtof(optarg, NULL);
 			break;
 		case 'o':
 			strncpy(gc->output, optarg, 256);

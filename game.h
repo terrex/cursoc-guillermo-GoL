@@ -14,7 +14,7 @@ struct game_config {
 	int cols;
 	int density;
 	int generations;
-	int speed;
+	float speed;
 	char file_config[256];
 	char output[256];
 	FILE *output_fp;

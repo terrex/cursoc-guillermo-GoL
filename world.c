@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
+#include <stdbool.h>
 
 #ifndef typeof
 #define typeof __typeof__
@@ -150,13 +151,18 @@ static void _world_init_empty(struct world *this)
 
 static void _world_init_density(struct world *this, int density)
 {
+	static bool seeded;
+
 	assert(density <= 100);
 	this->init_empty(this);
 
 	int to_be_alive = this->world_pr->rows * this->world_pr->cols * density / 100;
 	int collisions = 0;
 
-	srand((unsigned int) time(0));
+	if (!seeded) {
+		srand((unsigned int) time(0));
+		seeded = true;
+	}
 
 	while (this->world_pr->alive_cells_count < to_be_alive) {
 		int i = _rrand(0, this->world_pr->rows);

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <gtk/gtk.h>
-#include "gui.h"
 #include "game.h"
+#include "gui.h"
 
 int main(int argc, char **argv)
 {
@@ -12,8 +12,10 @@ int main(int argc, char **argv)
 	gtk_init(&argc, &argv);
 
 	game_config_defaults(&gc);
-	gc.rows *= 2;
-	gc.cols *= 2;
+	gc.rows = 40;
+	gc.cols = 80;
+	gc.game_type = TYPE_TOROIDAL;
+	gc.speed = 0.10;
 
 	g = gui_alloc(&gc);
 	if (!g) {

@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 		w->next_gen(w);
 		printf(RESET_SCREEN "World #%d:\n", w->get_generation(w));
 		w->print(w);
-		usleep(gc.speed);
+		usleep((useconds_t) gc.speed * 100000);
 		game_log_output(&gc, w);
 	} while (++gens < gc.generations);
 

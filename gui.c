@@ -9,8 +9,6 @@
 #include "world_normal.h"
 #include "world_toroidal.h"
 
-#define VEL_MS 10
-
 struct gui {
 	GtkBuilder *builder;
 
@@ -21,9 +19,11 @@ struct gui {
 	GtkWidget *btnPause;
 	GtkWidget *btnStep;
 	GtkWidget *tglToroidal;
+	GtkWidget *sclSpeed;
 	GtkWidget *daMapContainer;
 	GtkDrawingArea *daMap;
 	GtkStatusbar *statusbar;
+	GtkWidget *menuFileNew;
 
 	bool run;
 	int draw_scale;
@@ -32,14 +32,18 @@ struct gui {
 };
 
 /* Callbacks */
-static gboolean draw_cb(GtkWidget *widget, cairo_t *cr, struct gui *g);
+static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g);
 static gboolean timer_cb(gpointer gui);
-static void step_cb(GtkWidget *widget, struct gui *g);
-static void pause_cb(GtkWidget *widget, struct gui *g);
+static void btnStep_clicked(GtkWidget *widget, struct gui *g);
+static void btnPlay_clicked(GtkWidget *widget, struct gui *g);
+static void btnPause_clicked(GtkWidget *widget, struct gui *g);
 static gboolean mouse_btn_cb(GtkWidget *widget, GdkEventButton *e,
 			 struct gui *g);
 static void reset_world(struct gui *g, int newrows, int newcols);
 static void refresh_status(struct gui *g);
+static void tglToroidal_toggled(GtkWidget *widget, struct gui *g);
+static void sclSpeed_value_changed(GtkWidget *widget, struct gui *g);
+static void menuFileNew_activate(GtkWidget *widget, struct gui *g);
 
 
 struct gui *gui_alloc(struct game_config *gc)
@@ -50,12 +54,6 @@ struct gui *gui_alloc(struct game_config *gc)
 	g = (struct gui *)malloc(sizeof(struct gui));
 	if (!g)
 		return NULL;
-
-	g->gc = gc;
-	g->run = false;
-	g->draw_scale = 4;
-	g->world = NULL;
-	reset_world(g, g->gc->rows, g->gc->cols);
 
 	/* builder */
 	g->builder = gtk_builder_new();
@@ -71,26 +69,37 @@ struct gui *gui_alloc(struct game_config *gc)
 	g->btnStep = GTK_WIDGET(gtk_builder_get_object(g->builder, "btnStep"));
 	g->tglToroidal = GTK_WIDGET(gtk_builder_get_object(g->builder, "tglToroidal"));
 	g->daMapContainer = GTK_WIDGET(gtk_builder_get_object(g->builder, "daMapContainer"));
+	g->sclSpeed = GTK_WIDGET(gtk_builder_get_object(g->builder, "sclSpeed"));
 	g->daMap = GTK_DRAWING_AREA(gtk_builder_get_object(g->builder, "daMap"));
 	g->statusbar = GTK_STATUSBAR(gtk_builder_get_object(g->builder, "statusbar"));
+	g->menuFileNew = GTK_WIDGET(gtk_builder_get_object(g->builder, "menuFileNew"));
 	if (!(g->awMain && g->btnOpen && g->btnSave && g->btnPlay &&
-	g->btnPause && g->btnStep && g->tglToroidal && g->daMap)) {
+		  g->btnPause && g->btnStep && g->tglToroidal && g->daMap)) {
 		/* Establecemos errno para que perror imprima el mensaje correcto */
 		errno = EINVAL;
 		return NULL;
 	}
 
+	g->gc = gc;
+	g->run = false;
+	g->draw_scale = 4;
+	g->world = NULL;
+	reset_world(g, g->gc->rows, g->gc->cols);
+
 	g_signal_connect(g->awMain, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	gtk_widget_set_size_request(GTK_WIDGET(g->daMap), g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
-	g_signal_connect(g->daMap, "draw", G_CALLBACK(draw_cb), g);
+	g_signal_connect(g->daMap, "draw", G_CALLBACK(daMap_draw), g);
+	g_signal_connect(g->btnStep, "clicked", G_CALLBACK(btnStep_clicked), g);
+	g_signal_connect(g->btnPlay, "clicked", G_CALLBACK(btnPlay_clicked), g);
+	g_signal_connect(g->btnPause, "clicked", G_CALLBACK(btnPause_clicked), g);
+	g_signal_connect(g->tglToroidal, "toggled", G_CALLBACK(tglToroidal_toggled), g);
+	g_signal_connect(g->sclSpeed, "value-changed", G_CALLBACK(sclSpeed_value_changed), g);
+	g_signal_connect(g->menuFileNew, "activate", G_CALLBACK(menuFileNew_activate), g);
+
 
 	gtk_builder_connect_signals(g->builder, NULL);
 
 	gtk_widget_show_all(g->awMain);
-
-	guint context_id = gtk_statusbar_get_context_id(g->statusbar, "status");
-
-	gtk_statusbar_push(g->statusbar, context_id, "Mi texto");
 
 	return g;
 }
@@ -119,12 +128,13 @@ static void refresh_status(struct gui *g)
 {
 	gchar text[512];
 
-	g_snprintf(text, 512, "World size %dx%d. Generation: %d.", g->gc->cols, g->gc->rows,
-			   g->world->get_generation(g->world));
+	g_snprintf(text, 512, "%dx%d. Gen: %4d. Alive: %5d (%5.2f%%).", g->gc->cols, g->gc->rows,
+			   g->world->get_generation(g->world), g->world->get_alive_cells_count(g->world),
+			   (float) g->world->get_alive_cells_count(g->world) / (g->gc->cols * g->gc->rows) * 100);
 	gtk_statusbar_push(g->statusbar, gtk_statusbar_get_context_id(g->statusbar, "status"), text);
 }
 
-static gboolean draw_cb(GtkWidget *widget, cairo_t *cr, struct gui *g)
+static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g)
 {
 	static bool painting;
 
@@ -170,27 +180,36 @@ static gboolean timer_cb(gpointer gui)
 {
 	struct gui *g = (struct gui *)gui;
 
-	step_cb(NULL, g);
-	/* Si devuelve false, la senyal se desconecta y el callback no se vuelve
-	 * a llamar
-	 */
-	return g->run;
+	btnStep_clicked(g->btnStep, g);
+
+	if (g->run)
+		g_timeout_add((guint) (g->gc->speed * 1000), timer_cb, g);
+
+	return false;
 }
 
-static void step_cb(GtkWidget *widget, struct gui *g)
+static void btnStep_clicked(GtkWidget *widget, struct gui *g)
 {
+	g->world->next_gen(g->world);
+	gtk_widget_queue_draw(GTK_WIDGET(g->daMap));
+	refresh_status(g);
 }
 
-static void pause_cb(GtkWidget *widget, struct gui *g)
+static void btnPause_clicked(GtkWidget *widget, struct gui *g)
 {
-	/* TODO
-	 * Cambiar el label del boton de "run" a "pause" para que indique en
-	 * cada momento su funcionalidad
-	 */
-	if (!g->run)
-		g_timeout_add(VEL_MS, timer_cb, g); /* Conectamos la senyal de nuevo */
-	g->run = !g->run;
+	g->run = false;
 }
+
+static void btnPlay_clicked(GtkWidget *widget, struct gui *g)
+{
+	if (g->run)
+		return;
+
+	g->run = true;
+	g_timeout_add((guint) (g->gc->speed * 1000), timer_cb, g);
+}
+
+
 
 static gboolean mouse_btn_cb(GtkWidget *widget, GdkEventButton *e,
 			 struct gui *g)
@@ -200,4 +219,32 @@ static gboolean mouse_btn_cb(GtkWidget *widget, GdkEventButton *e,
 	 * el ratón. Pista: las coordenadas del mundo no son las mismas que las
 	 * de la ventana.
 	 */
+}
+
+static void tglToroidal_toggled(GtkWidget *widget, struct gui *g)
+{
+	if (gtk_toggle_tool_button_get_active(GTK_TOGGLE_TOOL_BUTTON(widget)))
+		g->gc->game_type = TYPE_TOROIDAL;
+	else
+		g->gc->game_type = TYPE_NORMAL;
+
+	reset_world(g, g->gc->rows, g->gc->cols);
+	gtk_widget_set_size_request(GTK_WIDGET(g->daMap), g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
+}
+
+static void sclSpeed_value_changed(GtkWidget *widget, struct gui *g)
+{
+	g->gc->speed = (float) gtk_range_get_value(GTK_RANGE(widget));
+}
+
+static void menuFileNew_activate(GtkWidget *widget, struct gui *g)
+{
+	g->run = false;
+	g->gc->rows = 40;
+	g->gc->cols = 80;
+	g->gc->game_type = TYPE_TOROIDAL;
+	g->gc->speed = 0.10;
+	gtk_toggle_tool_button_set_active(GTK_TOGGLE_TOOL_BUTTON(g->tglToroidal), true);
+	gtk_range_set_value(GTK_RANGE(g->sclSpeed), 0.10);
+	gtk_widget_set_size_request(GTK_WIDGET(g->daMap), g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
 }
