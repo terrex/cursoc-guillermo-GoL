@@ -1,15 +1,30 @@
 cmake_minimum_required(VERSION 2.6)
 project(juego-vida)
 
-add_definitions(-std=c99)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+include_directories(${GTK3_INCLUDE_DIRS})
+link_directories(${GTK3_LIBRARY_DIRS})
+add_definitions(${GTK3_CFLAGS_OTHER})
+
+add_definitions(-std=c99 -D_BSD_SOURCE)
 
 add_executable(juego-vida list.h world.c world.h game.c game.h world_normal.c world_normal.h world_toroidal.c world_toroidal.h main.c)
+target_link_libraries(juego-vida)
+
+add_executable(juego-vida-gui list.h world.c world.h game.c game.h world_normal.c world_normal.h world_toroidal.c world_toroidal.h gui.h gui.c main-gui.c)
+target_link_libraries(juego-vida-gui ${GTK3_LIBRARIES})
+configure_file(builder.ui builder.ui COPYONLY)
+configure_file(icon-torus.png icon-torus.png COPYONLY)
+configure_file(icon-torus.svg icon-torus.svg COPYONLY)
 
 add_custom_target(check
-        checkpatch.pl -q --no-tree -f --fix-inplace ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/*.h)
+        ${CMAKE_SOURCE_DIR}/checkpatch.pl -q --no-tree -f --fix-inplace ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/*.h)
 
 add_custom_target(download
-        wget "http://www.mcs.anl.gov/~kazutomo/list/list.h" -O "${CMAKE_SOURCE_DIR}/list.h")
+        COMMAND wget "http://www.mcs.anl.gov/~kazutomo/list/list.h" -O "${CMAKE_SOURCE_DIR}/list.h"
+        COMMAND wget "https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl" -O "${CMAKE_SOURCE_DIR}/checkpatch.pl"
+        COMMAND chmod +x "${CMAKE_SOURCE_DIR}/checkpatch.pl")
 
 enable_testing()
 
