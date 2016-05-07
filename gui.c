@@ -13,7 +13,6 @@ struct gui {
 	GtkBuilder *builder;
 
 	GtkWidget *awMain;
-	GtkWidget *btnSave;
 	GtkWidget *btnPlayPause;
 	GtkWidget *btnStep;
 	GtkWidget *tglToroidal;
@@ -35,8 +34,8 @@ static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g);
 static gboolean timer_cb(gpointer gui);
 static void btnStep_clicked(GtkWidget *widget, struct gui *g);
 static void btnPlayPause_clicked(GtkWidget *widget, struct gui *g);
-static gboolean mouse_btn_cb(GtkWidget *widget, GdkEventButton *e,
-			 struct gui *g);
+static gboolean daMap_button_press_event(GtkWidget *widget, GdkEventButton *e, struct gui *g);
+static gboolean daMap_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, struct gui *g);
 static void reset_world(struct gui *g, int newrows, int newcols);
 static void refresh_status(struct gui *g);
 static void tglToroidal_toggled(GtkWidget *widget, struct gui *g);
@@ -60,7 +59,6 @@ struct gui *gui_alloc(struct game_config *gc)
 
 	/* GObjects */
 	g->awMain = GTK_WIDGET(gtk_builder_get_object(g->builder, "awMain"));
-	g->btnSave = GTK_WIDGET(gtk_builder_get_object(g->builder, "btnSave"));
 	g->btnPlayPause = GTK_WIDGET(gtk_builder_get_object(g->builder, "btnPlayPause"));
 	g->btnStep = GTK_WIDGET(gtk_builder_get_object(g->builder, "btnStep"));
 	g->tglToroidal = GTK_WIDGET(gtk_builder_get_object(g->builder, "tglToroidal"));
@@ -90,6 +88,8 @@ struct gui *gui_alloc(struct game_config *gc)
 	g_signal_connect(g->tglToroidal, "toggled", G_CALLBACK(tglToroidal_toggled), g);
 	g_signal_connect(g->sclSpeed, "value-changed", G_CALLBACK(sclSpeed_value_changed), g);
 	g_signal_connect(g->menuFileNew, "activate", G_CALLBACK(menuFileNew_activate), g);
+	g_signal_connect(g->daMap, "button-press-event", G_CALLBACK(daMap_button_press_event), g);
+	g_signal_connect(g->daMap, "motion-notify-event", G_CALLBACK(daMap_motion_notify_event), g);
 
 
 	gtk_builder_connect_signals(g->builder, NULL);
@@ -154,7 +154,7 @@ static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g)
 		g->resetting_size = false;
 		/* gtk_widget_set_size_request(g->daMapContainer, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale); */
 		/* gtk_widget_set_size_request(widget, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale); */
-		gtk_window_resize(g->awMain, 30, 30);
+		gtk_window_resize(GTK_WINDOW(g->awMain), 30, 30);
 	} else {
 		if (newrows != g->gc->rows || newcols != g->gc->cols)
 			reset_world(g, newrows, newcols);
@@ -165,13 +165,17 @@ static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g)
 	cairo_set_source_rgb(cr, 0, 0, 0);
 	cairo_paint(cr);
 
-	cairo_set_source_rgb(cr, 1, 1, 1);
 	for (int i = 0; i < g->gc->rows; i++)
 		for (int j = 0; j < g->gc->cols; j++)
-			if (g->world->get_cell(g->world, i, j) == ALIVE)
+			if (g->world->get_cell(g->world, i, j) == ALIVE) {
+				cairo_set_source_rgb(cr, 1, 1, 1);
 				cairo_rectangle(cr, j * g->draw_scale, i * g->draw_scale, g->draw_scale, g->draw_scale);
-
-	cairo_fill(cr);
+				cairo_fill(cr);
+			} else {
+				cairo_set_source_rgb(cr, 0, 0, 0);
+				cairo_rectangle(cr, j * g->draw_scale, i * g->draw_scale, g->draw_scale, g->draw_scale);
+				cairo_fill(cr);
+			}
 
 	painting = false;
 
@@ -211,14 +215,55 @@ static void btnPlayPause_clicked(GtkWidget *widget, struct gui *g)
 
 
 
-static gboolean mouse_btn_cb(GtkWidget *widget, GdkEventButton *e,
-			 struct gui *g)
+static gboolean daMap_button_press_event(GtkWidget *widget, GdkEventButton *e,
+										 struct gui *g)
 {
-	/* TODO
-	 * e->x y e->y contienen las coordenadas de donde se ha hecho click con
-	 * el ratón. Pista: las coordenadas del mundo no son las mismas que las
-	 * de la ventana.
-	 */
+/*
+  gint true_x, true_y;
+	gtk_widget_translate_coordinates(g->awMain, widget, (gint) e->x, (gint) e->y, &true_x, &true_y);
+	int i = true_x / g->draw_scale;
+	int j = true_y / g->draw_scale;
+*/
+
+	int i = e->y / g->draw_scale;
+	int j = e->x / g->draw_scale;
+
+	if (e->button == 1)
+		g->world->set_cell(g->world, i, j, ALIVE);
+	else if (e->button == 3)
+		g->world->set_cell(g->world, i, j, DEAD);
+
+	gtk_widget_queue_draw(widget);
+
+	return FALSE;
+}
+
+static gboolean daMap_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, struct gui *g)
+{
+	GdkModifierType state;
+	int x, y;
+
+	if (event->is_hint) {
+		gdk_window_get_pointer(event->window, &x, &y, &state);
+	} else
+	{
+		x = event->x;
+		y = event->y;
+		state = event->state;
+	}
+
+	int i = y / g->draw_scale;
+	int j = x / g->draw_scale;
+
+	if (state & GDK_BUTTON1_MASK)
+	{
+		g->world->set_cell(g->world, i, j, ALIVE);
+		gtk_widget_queue_draw(widget);
+	} else if (state & GDK_BUTTON3_MASK) {
+		g->world->set_cell(g->world, i, j, DEAD);
+		gtk_widget_queue_draw(widget);
+	}
+	return FALSE;
 }
 
 static void tglToroidal_toggled(GtkWidget *widget, struct gui *g)
