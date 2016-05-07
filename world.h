@@ -33,6 +33,7 @@ struct world {
 
     void (*load)(struct world *this, FILE *stream);
     void (*save)(const struct world *this, FILE *stream);
+    void (*refresh_alive_cells_index)(struct world *this);
 };
 
 struct world *world_alloc(int rows, int cols);

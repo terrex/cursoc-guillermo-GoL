@@ -74,6 +74,7 @@ static int _world_get_alive_cells_count(const struct world *this);
 static int _world_get_generation(const struct world *this);
 static unsigned char *_world_get_current_matrix(const struct world *this);
 static unsigned char *_world_get_previous_matrix(const struct world *this);
+static void _world_refresh_alive_cells_index(struct world *this);
 
 /* private & public implementations */
 
@@ -126,6 +127,7 @@ void world_init(struct world *this, int rows, int cols)
 	this->set_cell_previous = NULL;
 	this->load = _world_load;
 	this->save = _world_save;
+	this->refresh_alive_cells_index = _world_refresh_alive_cells_index;
 }
 
 
@@ -351,18 +353,7 @@ static void _world_load(struct world *this, FILE *stream)
 		exit(EXIT_FAILURE);
 	}
 
-	INIT_LIST_HEAD(&this->world_pr->alive_list);
-	this->world_pr->alive_cells_count = 0;
-	for (int i = 0; i < this->world_pr->rows; i++) {
-		for (int j = 0; j < this->world_pr->cols; j++) {
-			if (this->get_cell(this, _O_(i, j)) == ALIVE) {
-				struct list_element *le = _list_element_new(i, j);
-
-				list_add(&le->list, &this->world_pr->alive_list);
-				this->world_pr->alive_cells_count++;
-			}
-		}
-	}
+	_world_refresh_alive_cells_index(this);
 }
 
 static void _world_save(const struct world *this, FILE *stream)
@@ -408,4 +399,20 @@ static unsigned char *_world_get_current_matrix(const struct world *this)
 static unsigned char *_world_get_previous_matrix(const struct world *this)
 {
 	return this->world_pr->previous_matrix;
+}
+
+static void _world_refresh_alive_cells_index(struct world *this)
+{
+	INIT_LIST_HEAD(&this->world_pr->alive_list);
+	this->world_pr->alive_cells_count = 0;
+	for (int i = 0; i < this->world_pr->rows; i++) {
+		for (int j = 0; j < this->world_pr->cols; j++) {
+			if (this->get_cell(this, _O_(i, j)) == ALIVE) {
+				struct list_element *le = _list_element_new(i, j);
+
+				list_add(&le->list, &this->world_pr->alive_list);
+				this->world_pr->alive_cells_count++;
+			}
+		}
+	}
 }

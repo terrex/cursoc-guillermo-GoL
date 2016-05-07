@@ -27,6 +27,7 @@ struct gui {
 	struct world *world;
 	struct game_config *gc;
 	bool resetting_size;
+	bool something_changed;
 };
 
 /* Callbacks */
@@ -35,6 +36,7 @@ static gboolean timer_cb(gpointer gui);
 static void btnStep_clicked(GtkWidget *widget, struct gui *g);
 static void btnPlayPause_clicked(GtkWidget *widget, struct gui *g);
 static gboolean daMap_button_press_event(GtkWidget *widget, GdkEventButton *e, struct gui *g);
+static gboolean daMap_button_release_event(GtkWidget *widget, GdkEventButton *e, struct gui *g);
 static gboolean daMap_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, struct gui *g);
 static void reset_world(struct gui *g, int newrows, int newcols);
 static void refresh_status(struct gui *g);
@@ -78,6 +80,7 @@ struct gui *gui_alloc(struct game_config *gc)
 	g->draw_scale = 4;
 	g->world = NULL;
 	g->resetting_size = true;
+	g->something_changed = false;
 	reset_world(g, g->gc->rows, g->gc->cols);
 
 	g_signal_connect(g->awMain, "destroy", G_CALLBACK(gtk_main_quit), NULL);
@@ -89,6 +92,7 @@ struct gui *gui_alloc(struct game_config *gc)
 	g_signal_connect(g->sclSpeed, "value-changed", G_CALLBACK(sclSpeed_value_changed), g);
 	g_signal_connect(g->menuFileNew, "activate", G_CALLBACK(menuFileNew_activate), g);
 	g_signal_connect(g->daMap, "button-press-event", G_CALLBACK(daMap_button_press_event), g);
+	g_signal_connect(g->daMap, "button-release-event", G_CALLBACK(daMap_button_release_event), g);
 	g_signal_connect(g->daMap, "motion-notify-event", G_CALLBACK(daMap_motion_notify_event), g);
 
 
@@ -196,6 +200,10 @@ static gboolean timer_cb(gpointer gui)
 
 static void btnStep_clicked(GtkWidget *widget, struct gui *g)
 {
+	if (g->something_changed) {
+		g->world->refresh_alive_cells_index(g->world);
+		g->something_changed = false;
+	}
 	g->world->next_gen(g->world);
 	gtk_widget_queue_draw(GTK_WIDGET(g->daMap));
 	refresh_status(g);
@@ -218,7 +226,7 @@ static void btnPlayPause_clicked(GtkWidget *widget, struct gui *g)
 static gboolean daMap_button_press_event(GtkWidget *widget, GdkEventButton *e,
 										 struct gui *g)
 {
-/*
+/* XXX: parece que no es necesario?!:=="!?¿?!¿
   gint true_x, true_y;
 	gtk_widget_translate_coordinates(g->awMain, widget, (gint) e->x, (gint) e->y, &true_x, &true_y);
 	int i = true_x / g->draw_scale;
@@ -228,39 +236,43 @@ static gboolean daMap_button_press_event(GtkWidget *widget, GdkEventButton *e,
 	int i = e->y / g->draw_scale;
 	int j = e->x / g->draw_scale;
 
-	if (e->button == 1)
+	if (e->button == 1) {
 		g->world->set_cell(g->world, i, j, ALIVE);
-	else if (e->button == 3)
+		g->something_changed = true;
+	} else if (e->button == 3) {
 		g->world->set_cell(g->world, i, j, DEAD);
+		g->something_changed = true;
+	}
 
 	gtk_widget_queue_draw(widget);
 
 	return FALSE;
 }
 
-static gboolean daMap_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, struct gui *g)
+static gboolean daMap_button_release_event(GtkWidget *widget, GdkEventButton *e, struct gui *g)
 {
-	GdkModifierType state;
-	int x, y;
-
-	if (event->is_hint) {
-		gdk_window_get_pointer(event->window, &x, &y, &state);
-	} else
-	{
-		x = event->x;
-		y = event->y;
-		state = event->state;
+	if (g->something_changed) {
+		g->world->refresh_alive_cells_index(g->world);
+		g->something_changed = false;
+		refresh_status(g);
 	}
 
-	int i = y / g->draw_scale;
-	int j = x / g->draw_scale;
+	return FALSE;
+}
 
-	if (state & GDK_BUTTON1_MASK)
+static gboolean daMap_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, struct gui *g)
+{
+	int i = (int) event->y / g->draw_scale;
+	int j = (int) event->x / g->draw_scale;
+
+	if (event->state & GDK_BUTTON1_MASK)
 	{
 		g->world->set_cell(g->world, i, j, ALIVE);
+		g->something_changed = true;
 		gtk_widget_queue_draw(widget);
-	} else if (state & GDK_BUTTON3_MASK) {
+	} else if (event->state & GDK_BUTTON3_MASK) {
 		g->world->set_cell(g->world, i, j, DEAD);
+		g->something_changed = true;
 		gtk_widget_queue_draw(widget);
 	}
 	return FALSE;
@@ -296,4 +308,5 @@ static void menuFileNew_activate(GtkWidget *widget, struct gui *g)
 	g->resetting_size = true;
 	reset_world(g, 40, 80);
 	gtk_widget_set_size_request(GTK_WIDGET(g->daMap), g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
+	gtk_widget_queue_draw(GTK_WIDGET(g->daMap));
 }
