@@ -54,3 +54,6 @@ add_test(NAME save_and_continue1-toroidal
 
 add_test(NAME save_and_continue2-toroidal
         COMMAND juego-vida --toroidal -l juego-vida-toroidal.dat -g 20 -w juego-vida-toroidal.dat -o juego-vida.plot)
+
+add_test(NAME juego-vida-gui
+        COMMAND juego-vida-gui)
