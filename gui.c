@@ -144,6 +144,7 @@ static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g)
 
 	if (g->resetting_size) {
 		g->resetting_size = false;
+		gtk_widget_set_size_request(widget, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
 		gtk_window_resize(GTK_WINDOW(g->awMain), 30, 30);
 	} else {
 		GtkAllocation alloc;
@@ -158,8 +159,8 @@ static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g)
 		newcols = w / g->draw_scale;
 		if (newrows != g->gc->rows || newcols != g->gc->cols)
 			reset_world(g, newrows, newcols);
+		gtk_widget_set_size_request(widget, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
 	}
-	gtk_widget_set_size_request(widget, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
 
 
 	/* Clear screen */
