@@ -195,7 +195,6 @@ static unsigned char _next_state_of(const struct world *this, int i, int j)
 					this->get_cell_previous(this, _N_(i, j)) +
 					this->get_cell_previous(this, _NE(i, j)) +
 					this->get_cell_previous(this, _W_(i, j)) +
-					this->get_cell_previous(this, _O_(i, j)) +
 					this->get_cell_previous(this, _E_(i, j)) +
 					this->get_cell_previous(this, _SW(i, j)) +
 					this->get_cell_previous(this, _S_(i, j)) +
