@@ -135,8 +135,8 @@ static void _world_init_empty(struct world *this)
 {
 	assert(ATTR_IS_SET(this->world_pr->flags, WORLD_MATRICES_ALLOCATED));
 
-	memset(this->world_pr->previous_matrix, DEAD, this->world_pr->rows * this->world_pr->cols);
-	memset(this->world_pr->current_matrix, DEAD, this->world_pr->rows * this->world_pr->cols);
+	memset(this->world_pr->previous_matrix, DEAD, (size_t) (this->world_pr->rows * this->world_pr->cols));
+	memset(this->world_pr->current_matrix, DEAD, (size_t) (this->world_pr->rows * this->world_pr->cols));
 
 	struct list_element *it, *_t;
 
@@ -219,7 +219,7 @@ static void _world_next_gen(struct world *this)
 
 	this->world_pr->previous_matrix = this->world_pr->current_matrix;
 	this->world_pr->current_matrix = _tp;
-	memset(this->world_pr->current_matrix, DEAD, this->world_pr->rows * this->world_pr->cols);
+	memset(this->world_pr->current_matrix, DEAD, (size_t) (this->world_pr->rows * this->world_pr->cols));
 
 	struct list_element *it, *_t;
 	struct list_head to_be_checked;
@@ -402,6 +402,14 @@ static unsigned char *_world_get_previous_matrix(const struct world *this)
 
 static void _world_refresh_alive_cells_index(struct world *this)
 {
+
+	struct list_element *it, *_t;
+
+	list_for_each_entry_safe(it, _t, &this->world_pr->alive_list, list) {
+		list_del(&it->list);
+		free(it);
+	}
+
 	INIT_LIST_HEAD(&this->world_pr->alive_list);
 	this->world_pr->alive_cells_count = 0;
 	for (int i = 0; i < this->world_pr->rows; i++) {

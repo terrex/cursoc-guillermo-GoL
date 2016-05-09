@@ -142,28 +142,25 @@ static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g)
 
 	painting = true;
 
-	/* available space */
-	gint w, h;
-	GtkAllocation alloc;
-
-	gtk_widget_get_allocation(g->daMapContainer, &alloc);
-	w = alloc.width;
-	h = alloc.height;
-	/* resize map */
-	gint newrows, newcols;
-
-	newrows = h / g->draw_scale;
-	newcols = w / g->draw_scale;
 	if (g->resetting_size) {
 		g->resetting_size = false;
-		/* gtk_widget_set_size_request(g->daMapContainer, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale); */
-		/* gtk_widget_set_size_request(widget, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale); */
 		gtk_window_resize(GTK_WINDOW(g->awMain), 30, 30);
 	} else {
+		GtkAllocation alloc;
+		gint w, h;
+
+		gtk_widget_get_allocation(g->daMapContainer, &alloc);
+		w = alloc.width;
+		h = alloc.height;
+		gint newrows, newcols;
+
+		newrows = h / g->draw_scale;
+		newcols = w / g->draw_scale;
 		if (newrows != g->gc->rows || newcols != g->gc->cols)
 			reset_world(g, newrows, newcols);
-		gtk_widget_set_size_request(widget, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
 	}
+	gtk_widget_set_size_request(widget, g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
+
 
 	/* Clear screen */
 	cairo_set_source_rgb(cr, 0, 0, 0);
@@ -183,7 +180,7 @@ static gboolean daMap_draw(GtkWidget *widget, cairo_t *cr, struct gui *g)
 
 	painting = false;
 
-	return false;
+	return FALSE;
 }
 
 static gboolean timer_cb(gpointer gui)
@@ -233,8 +230,8 @@ static gboolean daMap_button_press_event(GtkWidget *widget, GdkEventButton *e,
 	int j = true_y / g->draw_scale;
 */
 
-	int i = e->y / g->draw_scale;
-	int j = e->x / g->draw_scale;
+	int i = (int) (e->y / g->draw_scale);
+	int j = (int) (e->x / g->draw_scale);
 
 	if (e->button == 1) {
 		g->world->set_cell(g->world, i, j, ALIVE);
@@ -265,8 +262,7 @@ static gboolean daMap_motion_notify_event(GtkWidget *widget, GdkEventMotion *eve
 	int i = (int) event->y / g->draw_scale;
 	int j = (int) event->x / g->draw_scale;
 
-	if (event->state & GDK_BUTTON1_MASK)
-	{
+	if (event->state & GDK_BUTTON1_MASK) {
 		g->world->set_cell(g->world, i, j, ALIVE);
 		g->something_changed = true;
 		gtk_widget_queue_draw(widget);
@@ -287,6 +283,7 @@ static void tglToroidal_toggled(GtkWidget *widget, struct gui *g)
 
 	reset_world(g, g->gc->rows, g->gc->cols);
 	gtk_widget_set_size_request(GTK_WIDGET(g->daMap), g->gc->cols * g->draw_scale, g->gc->rows * g->draw_scale);
+	gtk_widget_queue_draw(GTK_WIDGET(g->daMap));
 }
 
 static void sclSpeed_value_changed(GtkWidget *widget, struct gui *g)
